@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Cricket Vision",
+    "slug": "cricket-vision",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0f1e"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.cricketvision",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Cricket Vision needs camera access to record cricket deliveries for AI analysis.",
+        "NSMicrophoneUsageDescription": "Cricket Vision needs microphone access when recording video.",
+        "NSPhotoLibraryUsageDescription": "Cricket Vision needs gallery access to select videos for analysis."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0f1e"
+      },
+      "package": "com.yourname.cricketvision",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Cricket Vision to access your camera to record deliveries."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Cricket Vision to access your photo library."
+        }
+      ]
+    ]
+  }
+}
