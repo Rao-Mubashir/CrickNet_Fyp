@@ -8,7 +8,7 @@ import axios from 'axios';
 //   • Mac/Linux: run `ifconfig` → look for inet address
 // Example: const BASE_URL = 'http://192.168.1.105:8000';
 // ──────────────────────────────────────────────────────────────────────────────
-export const BASE_URL = 'http://172.26.4.159:8000';
+export const BASE_URL = 'http://172.26.4.160:8000';
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 120000, // 2 min timeout for large videos

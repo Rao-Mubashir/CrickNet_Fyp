@@ -6,8 +6,6 @@ import uuid
 import shutil
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
-import cv2
-import numpy as np
 
 from app.analysis.models import AnalysisResult, Detection
 from app.analysis.utils import (
@@ -44,82 +42,37 @@ async def analyze_video(
         # Load YOLO model
         model = load_yolo_model()
 
-        # Open video
-        cap = cv2.VideoCapture(temp_path)
-        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        # Single source of truth: use extract_ball_coordinates from utils
+        raw_data, fps, width, height, total_frames = extract_ball_coordinates(temp_path, model)
 
+        # Build trajectory, detections, and speeds from raw_data
         trajectory = []
         detections = []
         speeds = []
         prev_pos = None
-        frame_id = 0
 
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
+        for entry in raw_data:
+            x_center = entry['x']
+            y_center = entry['y']
 
-            # Run YOLO inference
-            results = model.predict(frame, conf=0.25, verbose=False)
+            trajectory.append([x_center, y_center])
 
-            # Extract detections for class 0 (cricket ball)
-            for result in results:
-                boxes = result.boxes
-                for box in boxes:
-                    class_id = int(box.cls[0])
+            detections.append(
+                Detection(
+                    frame=entry['frame'],
+                    x=x_center,
+                    y=y_center,
+                    confidence=1.0,  # YOLO conf already filtered in extract_ball_coordinates
+                )
+            )
 
-                    # Only process class 0 (cricket ball)
-                    if class_id == 0:
-                        confidence = float(box.conf[0])
-                        x1 = int(box.xyxy[0][0])
-                        y1 = int(box.xyxy[0][1])
-                        x2 = int(box.xyxy[0][2])
-                        y2 = int(box.xyxy[0][3])
+            if prev_pos:
+                speed = calculate_speed(
+                    prev_pos, (x_center, y_center), fps=fps
+                )
+                speeds.append(speed)
 
-                        # Color validation
-                        roi = frame[y1:y2, x1:x2]
-                        if roi.size > 0:
-                            hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-                            
-                            mask1 = cv2.inRange(hsv, np.array([0, 100, 50]), np.array([10, 255, 150]))
-                            mask2 = cv2.inRange(hsv, np.array([0, 80, 150]), np.array([15, 255, 255]))
-                            mask3 = cv2.inRange(hsv, np.array([170, 80, 80]), np.array([180, 255, 255]))
-                            
-                            combined = cv2.bitwise_or(mask1, mask2)
-                            combined = cv2.bitwise_or(combined, mask3)
-                            
-                            red_ratio = cv2.countNonZero(combined) / (roi.shape[0] * roi.shape[1])
-                            
-                            if red_ratio >= 0.25:
-                                x_center = float(box.xywh[0][0])
-                                y_center = float(box.xywh[0][1])
-
-                                # Add to trajectory
-                                trajectory.append([x_center, y_center])
-
-                                # Add to detections
-                                detections.append(
-                                    Detection(
-                                        frame=frame_id,
-                                        x=x_center,
-                                        y=y_center,
-                                        confidence=confidence,
-                                    )
-                                )
-
-                                # Calculate speed from consecutive detections
-                                if prev_pos:
-                                    speed = calculate_speed(
-                                        prev_pos, (x_center, y_center), fps=fps
-                                    )
-                                    speeds.append(speed)
-
-                                prev_pos = (x_center, y_center)
-                                break  # Break inner loop to process only one ball per frame
-
-            frame_id += 1
-
-        cap.release()
+            prev_pos = (x_center, y_center)
 
         # Calculate average and max speed
         avg_speed = sum(speeds) / len(speeds) if speeds else 0.0

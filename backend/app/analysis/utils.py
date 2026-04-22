@@ -1,5 +1,3 @@
-"""Analysis utility functions"""
-
 import math
 import os
 import cv2
@@ -35,9 +33,62 @@ def calculate_speed(
     speed_kmh = pixel_distance * fps * pixel_to_kmh
     return speed_kmh
 
+def _color_confidence(roi: np.ndarray) -> float:
+    """
+    Compute a soft color-confidence score for how "red" the ROI looks.
+    Returns a value from 0.0 to 1.0.  This is used as a BONUS to rank
+    candidates — it should NEVER be used as a hard gate since mobile
+    videos have heavy motion blur, compression, and white-balance shifts
+    that destroy color accuracy on small objects.
+    """
+    if roi.size == 0 or roi.shape[0] < 2 or roi.shape[1] < 2:
+        return 0.0
+
+    total_pixels = roi.shape[0] * roi.shape[1]
+
+    # --- HSV: very broad red ranges ---
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    # Low-hue reds (H 0-20, generous S & V to handle blur/shadow)
+    m1 = cv2.inRange(hsv, np.array([0,   30, 30]), np.array([20,  255, 255]))
+    # Wrap-around reds (H 160-180)
+    m2 = cv2.inRange(hsv, np.array([160, 30, 30]), np.array([180, 255, 255]))
+    hsv_mask = cv2.bitwise_or(m1, m2)
+
+    # Only apply morphological cleanup on ROIs large enough that it won't
+    # erase the entire mask (ball can be as small as 5-6 px in mobile video)
+    if min(roi.shape[0], roi.shape[1]) >= 8:
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        hsv_mask = cv2.morphologyEx(hsv_mask, cv2.MORPH_CLOSE, kernel)
+
+    hsv_ratio = cv2.countNonZero(hsv_mask) / total_pixels
+
+    # --- Simple BGR channel check (no color-space conversion needed) ---
+    # For a red ball: R channel should dominate over G and B on average
+    b_mean = np.mean(roi[:, :, 0])
+    g_mean = np.mean(roi[:, :, 1])
+    r_mean = np.mean(roi[:, :, 2])
+
+    # Red dominance bonus: how much R exceeds G and B
+    r_dominance = 0.0
+    if r_mean > g_mean and r_mean > b_mean and r_mean > 30:
+        r_dominance = min(1.0, (r_mean - max(g_mean, b_mean)) / 80.0)
+
+    # Combine: HSV mask ratio + raw channel dominance
+    confidence = (hsv_ratio * 0.6) + (r_dominance * 0.4)
+    return min(1.0, confidence)
+
+
 def extract_ball_coordinates(input_video: str, model: YOLO) -> Tuple[List[Dict], int, int, int, int]:
     """
     Pass 1: Analyze video and extract ball coordinates.
+    
+    Strategy: TRUST the YOLO model (it's trained specifically for cricket balls).
+    Color analysis is only used as a soft ranking bonus when multiple detections
+    exist in the same frame — it is NOT a hard gate.
+    
+    Handles mobile video issues: motion blur, compression artifacts,
+    auto white-balance, small ball sizes.
+    
     Returns: (raw_data, fps, width, height, total_frames)
     """
     cap = cv2.VideoCapture(input_video)
@@ -54,41 +105,46 @@ def extract_ball_coordinates(input_video: str, model: YOLO) -> Tuple[List[Dict],
         if not ret:
             break
 
-        # Run YOLO
-        results = model.predict(frame, conf=0.25, verbose=False)
+        # Run YOLO — use the same conf threshold the model was validated with
+        results = model.predict(frame, conf=0.20, verbose=False)
 
-        # Check if a ball is detected
+        best_candidate = None
+        best_score = -1.0
+
         if len(results[0].boxes) > 0:
             for box in results[0].boxes:
                 if int(box.cls[0]) == 0:
                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-                    
-                    # Color validation
-                    roi = frame[int(y1):int(y2), int(x1):int(x2)]
-                    if roi.size > 0:
-                        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-                        
-                        mask1 = cv2.inRange(hsv, np.array([0, 100, 50]), np.array([10, 255, 150]))
-                        mask2 = cv2.inRange(hsv, np.array([0, 80, 150]), np.array([15, 255, 255]))
-                        mask3 = cv2.inRange(hsv, np.array([170, 80, 80]), np.array([180, 255, 255]))
-                        
-                        combined = cv2.bitwise_or(mask1, mask2)
-                        combined = cv2.bitwise_or(combined, mask3)
-                        
-                        red_ratio = cv2.countNonZero(combined) / (roi.shape[0] * roi.shape[1])
-                        
-                        if red_ratio >= 0.25:
-                            center_x = (x1 + x2) / 2
-                            center_y = (y1 + y2) / 2
-                            radius = (x2 - x1) / 2
+                    yolo_conf = float(box.conf[0])
+                    box_w = x2 - x1
+                    box_h = y2 - y1
 
-                            raw_data.append({
-                                'frame': frame_idx, 
-                                'x': center_x, 
-                                'y': center_y, 
-                                'r': radius
-                            })
-                            break  # Only take the first valid ball in this frame
+                    # Skip impossibly tiny detections (< 2px)
+                    if box_w < 2 or box_h < 2:
+                        continue
+
+                    center_x = (x1 + x2) / 2
+                    center_y = (y1 + y2) / 2
+
+                    # --- Soft color bonus (never blocks a detection) ---
+                    roi = frame[max(0, int(y1)):min(height, int(y2)),
+                                max(0, int(x1)):min(width, int(x2))]
+                    color_bonus = _color_confidence(roi)
+
+                    # Combined score: YOLO confidence is primary, color is a bonus
+                    score = yolo_conf + (color_bonus * 0.3)
+
+                    if score > best_score:
+                        best_score = score
+                        best_candidate = {
+                            'frame': frame_idx,
+                            'x': center_x,
+                            'y': center_y,
+                            'r': max((box_w + box_h) / 4, 2.0),  # Minimum 2px radius
+                        }
+
+        if best_candidate:
+            raw_data.append(best_candidate)
 
         frame_idx += 1
 
