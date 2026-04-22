@@ -4,11 +4,19 @@ import os
 import time
 import uuid
 import shutil
-from fastapi import APIRouter, File, UploadFile, Depends, HTTPException
+from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import FileResponse
 import cv2
+import numpy as np
 
 from app.analysis.models import AnalysisResult, Detection
-from app.analysis.utils import load_yolo_model, calculate_speed
+from app.analysis.utils import (
+    load_yolo_model, 
+    calculate_speed,
+    extract_ball_coordinates,
+    smooth_trajectory,
+    draw_fluffy_trajectory
+)
 from app.auth.utils import get_current_user
 from app.config import UPLOAD_DIR
 from app.database.client import get_db_client
@@ -52,7 +60,7 @@ async def analyze_video(
                 break
 
             # Run YOLO inference
-            results = model(frame, verbose=False)
+            results = model.predict(frame, conf=0.25, verbose=False)
 
             # Extract detections for class 0 (cricket ball)
             for result in results:
@@ -63,30 +71,51 @@ async def analyze_video(
                     # Only process class 0 (cricket ball)
                     if class_id == 0:
                         confidence = float(box.conf[0])
-                        x_center = float(box.xywh[0][0])
-                        y_center = float(box.xywh[0][1])
+                        x1 = int(box.xyxy[0][0])
+                        y1 = int(box.xyxy[0][1])
+                        x2 = int(box.xyxy[0][2])
+                        y2 = int(box.xyxy[0][3])
 
-                        # Add to trajectory
-                        trajectory.append([x_center, y_center])
+                        # Color validation
+                        roi = frame[y1:y2, x1:x2]
+                        if roi.size > 0:
+                            hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+                            
+                            mask1 = cv2.inRange(hsv, np.array([0, 100, 50]), np.array([10, 255, 150]))
+                            mask2 = cv2.inRange(hsv, np.array([0, 80, 150]), np.array([15, 255, 255]))
+                            mask3 = cv2.inRange(hsv, np.array([170, 80, 80]), np.array([180, 255, 255]))
+                            
+                            combined = cv2.bitwise_or(mask1, mask2)
+                            combined = cv2.bitwise_or(combined, mask3)
+                            
+                            red_ratio = cv2.countNonZero(combined) / (roi.shape[0] * roi.shape[1])
+                            
+                            if red_ratio >= 0.25:
+                                x_center = float(box.xywh[0][0])
+                                y_center = float(box.xywh[0][1])
 
-                        # Add to detections
-                        detections.append(
-                            Detection(
-                                frame=frame_id,
-                                x=x_center,
-                                y=y_center,
-                                confidence=confidence,
-                            )
-                        )
+                                # Add to trajectory
+                                trajectory.append([x_center, y_center])
 
-                        # Calculate speed from consecutive detections
-                        if prev_pos:
-                            speed = calculate_speed(
-                                prev_pos, (x_center, y_center), fps=fps
-                            )
-                            speeds.append(speed)
+                                # Add to detections
+                                detections.append(
+                                    Detection(
+                                        frame=frame_id,
+                                        x=x_center,
+                                        y=y_center,
+                                        confidence=confidence,
+                                    )
+                                )
 
-                        prev_pos = (x_center, y_center)
+                                # Calculate speed from consecutive detections
+                                if prev_pos:
+                                    speed = calculate_speed(
+                                        prev_pos, (x_center, y_center), fps=fps
+                                    )
+                                    speeds.append(speed)
+
+                                prev_pos = (x_center, y_center)
+                                break  # Break inner loop to process only one ball per frame
 
             frame_id += 1
 
@@ -132,6 +161,69 @@ async def analyze_video(
         # Clean up temporary file
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+import asyncio
+
+def cleanup_files(*file_paths):
+    """Background task to remove temporary files after response is sent"""
+    for path in file_paths:
+        if path and os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception as e:
+                print(f"Failed to remove temp file {path}: {e}")
+
+async def delayed_cleanup(*file_paths, delay_seconds=300):
+    """Wait before cleaning up so the user has time to view the video"""
+    await asyncio.sleep(delay_seconds)
+    cleanup_files(*file_paths)
+
+@router.post("/analyze/fluffy")
+async def analyze_video_fluffy(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """Analyze video and return a new video with a fluffy trajectory tail"""
+    
+    # Save uploaded file temporarily
+    file_id = str(uuid.uuid4())
+    temp_input_path = os.path.join(UPLOAD_DIR, f"{file_id}_in.mp4")
+    temp_output_path = os.path.join(UPLOAD_DIR, f"{file_id}_out.mp4")
+    
+    with open(temp_input_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    try:
+        # Load YOLO model
+        model = load_yolo_model()
+        
+        # Pass 1: Extract coordinates
+        raw_data, fps, width, height, total_frames = extract_ball_coordinates(temp_input_path, model)
+        
+        # Smooth and fill gaps
+        df = smooth_trajectory(raw_data, total_frames)
+        
+        # Pass 2: Draw fluffy trajectory and save
+        draw_fluffy_trajectory(temp_input_path, temp_output_path, df, fps, width, height)
+        
+        # Check if output video was created
+        if not os.path.exists(temp_output_path):
+            raise HTTPException(status_code=500, detail="Failed to generate output video")
+            
+        # Clean up input immediately, keep output for 5 minutes so it can be viewed
+        background_tasks.add_task(cleanup_files, temp_input_path)
+        background_tasks.add_task(delayed_cleanup, temp_output_path, delay_seconds=300)
+            
+        return {
+            "message": "Analysis complete",
+            "video_url": f"/static/{file_id}_out.mp4"
+        }
+
+    except Exception as e:
+        background_tasks.add_task(cleanup_files, temp_input_path, temp_output_path)
+        raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
 
 
 @router.get("/analyses")

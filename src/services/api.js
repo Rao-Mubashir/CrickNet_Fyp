@@ -8,7 +8,7 @@ import axios from 'axios';
 //   • Mac/Linux: run `ifconfig` → look for inet address
 // Example: const BASE_URL = 'http://192.168.1.105:8000';
 // ──────────────────────────────────────────────────────────────────────────────
-export const BASE_URL = 'http://10.51.158.109:8000';
+export const BASE_URL = 'http://172.26.4.159:8000';
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 120000, // 2 min timeout for large videos
@@ -97,5 +97,42 @@ export const analyzeVideo = async (videoUri, onProgress) => {
  *   ]
  * }
  */
+
+/**
+ * Send a video file to the backend to generate the fluffy trajectory video.
+ * @param {string} videoUri - Local URI of the video file
+ * @param {Function} onProgress - Progress callback (0-100)
+ * @returns {Promise<{message: string, video_url: string}>}
+ */
+export const analyzeFluffyVideo = async (videoUri, onProgress) => {
+  const formData = new FormData();
+
+  // Determine file name and type from URI
+  const uriParts = videoUri.split('.');
+  const fileExtension = uriParts[uriParts.length - 1];
+  const mimeType = fileExtension === 'mov' ? 'video/quicktime' : 'video/mp4';
+
+  formData.append('file', {
+    uri: videoUri,
+    name: `delivery_${Date.now()}.${fileExtension}`,
+    type: mimeType,
+  });
+
+  const response = await api.post('/analyze/fluffy', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && onProgress) {
+        const percentCompleted = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total
+        );
+        onProgress(percentCompleted);
+      }
+    },
+  });
+
+  return response.data;
+};
 
 export default api;

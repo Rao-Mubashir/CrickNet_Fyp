@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator,
+  View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Dimensions,
 } from 'react-native';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SPACING } from '../utils/theme';
+import Svg, { Polygon } from 'react-native-svg';
+import { MaterialIcons } from '@expo/vector-icons';
+import { COLORS, RADIUS, SPACING, FONTS, TYPOGRAPHY } from '../utils/theme';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const CameraScreen = ({ navigation }) => {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -24,7 +28,7 @@ const CameraScreen = ({ navigation }) => {
   if (!cameraPermission || !micPermission) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={COLORS.blue} size="large" />
+        <ActivityIndicator color={COLORS.primary} size="large" />
       </View>
     );
   }
@@ -32,10 +36,10 @@ const CameraScreen = ({ navigation }) => {
   if (!cameraPermission.granted || !micPermission.granted) {
     return (
       <SafeAreaView style={styles.permContainer}>
-        <Text style={styles.permEmoji}>📹</Text>
+        <MaterialIcons name="videocam" size={56} color={COLORS.primary} style={{ marginBottom: SPACING.xl }} />
         <Text style={styles.permTitle}>Camera Access Required</Text>
         <Text style={styles.permSub}>
-          Cricket Vision needs camera and microphone permission to record deliveries.
+          CrickVision needs camera and microphone permission to record deliveries.
         </Text>
         <TouchableOpacity
           style={styles.permBtn}
@@ -108,7 +112,7 @@ const CameraScreen = ({ navigation }) => {
           onPress={() => navigation.goBack()}
           disabled={isRecording}
         >
-          <Text style={styles.backText}>‹</Text>
+          <MaterialIcons name="chevron-left" size={28} color="#fff" />
         </TouchableOpacity>
 
         {/* Recording indicator */}
@@ -119,44 +123,54 @@ const CameraScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Targeting frame */}
-        <View style={styles.targetFrame}>
-          {['tl', 'tr', 'bl', 'br'].map((c) => (
-            <View key={c} style={[styles.corner, styles[c]]} />
-          ))}
+        {/* Pitch alignment guide */}
+        <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]} pointerEvents="none">
+          <Svg height={SCREEN_HEIGHT} width={SCREEN_WIDTH} viewBox={`0 0 ${SCREEN_WIDTH} ${SCREEN_HEIGHT}`}>
+            <Polygon
+              points={`${SCREEN_WIDTH * 0.3},${SCREEN_HEIGHT * 0.35} ${SCREEN_WIDTH * 0.7},${SCREEN_HEIGHT * 0.35} ${SCREEN_WIDTH},${SCREEN_HEIGHT} 0,${SCREEN_HEIGHT}`}
+              fill="transparent"
+              stroke="rgba(255, 235, 59, 0.8)" // Bright yellow overlay
+              strokeWidth="2.5"
+              strokeDasharray="8, 6"
+            />
+          </Svg>
+          <Text style={[styles.frameHint, { position: 'absolute', top: SCREEN_HEIGHT * 0.35 - 50 }]}>
+            Align pitch within guide
+          </Text>
         </View>
-        <Text style={styles.frameHint}>Align delivery within frame</Text>
 
-        {/* Controls */}
-        <View style={styles.controls}>
-          <TouchableOpacity style={styles.sideBtn} onPress={() => navigation.navigate('Upload')}>
-            <Text style={styles.sideBtnEmoji}>📁</Text>
-            <Text style={styles.sideBtnLabel}>Gallery</Text>
-          </TouchableOpacity>
+        <View style={{ marginBottom: 0 }}>
+          <Text style={styles.hintText}>
+            {isRecording ? 'Tap to stop · Max 30 seconds' : 'Tap to start recording'}
+          </Text>
 
-          <TouchableOpacity
-            style={[styles.recordBtn, isRecording && styles.recordBtnActive]}
-            onPress={isRecording ? stopRecording : startRecording}
-            disabled={uploading}
-          >
-            <View style={[styles.recordInner, isRecording && styles.recordInnerActive]} />
-          </TouchableOpacity>
+          {/* Controls */}
+          <View style={styles.controls}>
+            <TouchableOpacity style={styles.sideBtn} onPress={() => navigation.navigate('Upload')}>
+              <MaterialIcons name="photo-library" size={22} color="#fff" />
+              <Text style={styles.sideBtnLabel}>Gallery</Text>
+            </TouchableOpacity>
 
-          <View style={styles.sideBtn}>
-            {isRecording && (
-              <>
-                <Text style={styles.sideBtnEmoji}>⏱</Text>
-                <Text style={[styles.sideBtnLabel, { color: COLORS.error }]}>
-                  {formatDuration(recordDuration)}
-                </Text>
-              </>
-            )}
+            <TouchableOpacity
+              style={[styles.recordBtn, isRecording && styles.recordBtnActive]}
+              onPress={isRecording ? stopRecording : startRecording}
+              disabled={uploading}
+            >
+              <View style={[styles.recordInner, isRecording && styles.recordInnerActive]} />
+            </TouchableOpacity>
+
+            <View style={styles.sideBtn}>
+              {isRecording && (
+                <>
+                  <MaterialIcons name="timer" size={22} color="#fff" />
+                  <Text style={[styles.sideBtnLabel, { color: COLORS.error }]}>
+                    {formatDuration(recordDuration)}
+                  </Text>
+                </>
+              )}
+            </View>
           </View>
         </View>
-
-        <Text style={styles.hintText}>
-          {isRecording ? 'Tap to stop · Max 30 seconds' : 'Tap to start recording'}
-        </Text>
       </SafeAreaView>
     </View>
   );
@@ -167,16 +181,16 @@ const styles = StyleSheet.create({
   center: { flex: 1, backgroundColor: COLORS.bgPrimary, alignItems: 'center', justifyContent: 'center' },
   permContainer: {
     flex: 1, backgroundColor: COLORS.bgPrimary, alignItems: 'center',
-    justifyContent: 'center', padding: SPACING.xxxl,
+    justifyContent: 'center', padding: SPACING.xl,
   },
   permEmoji: { fontSize: 56, marginBottom: SPACING.xl },
-  permTitle: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '600', marginBottom: SPACING.md, textAlign: 'center' },
-  permSub: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.xxxl },
+  permTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.title, ...FONTS.semibold, marginBottom: SPACING.md, textAlign: 'center' },
+  permSub: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.body, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.xl },
   permBtn: {
-    backgroundColor: COLORS.blue, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary, borderRadius: RADIUS.md,
     paddingVertical: 14, paddingHorizontal: 32,
   },
-  permBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  permBtnText: { color: '#fff', fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
   overlay: { flex: 1, justifyContent: 'space-between' },
   backBtn: {
     backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: RADIUS.full,
@@ -189,25 +203,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.error },
-  recText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  targetFrame: {
-    alignSelf: 'center', width: 260, height: 160,
-    borderWidth: 1, borderColor: 'rgba(30,136,229,0.4)',
-    borderRadius: 10, position: 'relative',
+  recText: { color: '#fff', fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
+  pitchGuideContainer: {
+    alignSelf: 'center', 
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE, borderColor: COLORS.blue, borderStyle: 'solid' },
-  tl: { top: -1, left: -1, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 4 },
-  tr: { top: -1, right: -1, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 4 },
-  bl: { bottom: -1, left: -1, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 4 },
-  br: { bottom: -1, right: -1, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 4 },
-  frameHint: { color: 'rgba(255,255,255,0.5)', fontSize: 11, textAlign: 'center', marginTop: 8 },
+  frameHint: { color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center', ...FONTS.semibold },
   controls: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    paddingHorizontal: SPACING.xxxl, paddingBottom: SPACING.lg,
+    paddingHorizontal: SPACING.xl, paddingBottom: 0,
   },
   sideBtn: { alignItems: 'center', gap: 4, width: 60 },
   sideBtnEmoji: { fontSize: 22 },
-  sideBtnLabel: { color: COLORS.textSecondary, fontSize: 10 },
+  sideBtnLabel: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.small },
   recordBtn: {
     width: 72, height: 72, borderRadius: 36,
     borderWidth: 3, borderColor: '#fff',

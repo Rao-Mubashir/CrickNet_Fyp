@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Dimensions,
+  ActivityIndicator, Alert, Dimensions, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
 import Svg, { Polyline, Circle, Text as SvgText, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { analyzeVideo } from '../services/api';
-import { COLORS, RADIUS, SPACING, FONTS } from '../utils/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import { analyzeVideo, analyzeFluffyVideo, BASE_URL } from '../services/api';
+import { COLORS, RADIUS, SPACING, FONTS, TYPOGRAPHY } from '../utils/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SVG_WIDTH = SCREEN_WIDTH - 72;
@@ -21,6 +22,7 @@ const ResultScreen = ({ route, navigation }) => {
   const [loadingStage, setLoadingStage] = useState('Uploading video...');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [result, setResult] = useState(null);
+  const [fluffyVideoUrl, setFluffyVideoUrl] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -38,12 +40,22 @@ const ResultScreen = ({ route, navigation }) => {
 
     try {
       setLoadingStage('Uploading video...');
+      
+      // Run the standard analysis for stats
       const data = await analyzeVideo(videoUri, (pct) => {
         setUploadProgress(pct);
         if (pct >= 100) setLoadingStage('AI model analyzing...');
         if (pct >= 100) setTimeout(() => setLoadingStage('Generating trajectory...'), 1000);
       });
       setResult(data);
+
+      // In the background or sequentially, run the fluffy video generation
+      setLoadingStage('Generating fluffy video...');
+      const fluffyData = await analyzeFluffyVideo(videoUri);
+      if (fluffyData?.video_url) {
+        setFluffyVideoUrl(BASE_URL + fluffyData.video_url);
+      }
+
     } catch (err) {
       console.error('Analysis error:', err);
       const msg =
@@ -79,8 +91,8 @@ const ResultScreen = ({ route, navigation }) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <View style={styles.loadingCard}>
-            <Text style={styles.loadingEmoji}>🏏</Text>
-            <ActivityIndicator color={COLORS.blue} size="large" style={{ marginBottom: SPACING.lg }} />
+            <Image source={require('../assets/logo.png')} style={{ width: 48, height: 48, marginBottom: SPACING.xl, borderRadius: RADIUS.md }} />
+            <ActivityIndicator color={COLORS.primary} size="large" style={{ marginBottom: SPACING.lg }} />
             <Text style={styles.loadingTitle}>{loadingStage}</Text>
             <Text style={styles.loadingSub}>AI is analyzing your delivery...</Text>
             {uploadProgress > 0 && uploadProgress < 100 && (
@@ -103,15 +115,16 @@ const ResultScreen = ({ route, navigation }) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <View style={styles.loadingCard}>
-            <Text style={{ fontSize: 48, marginBottom: SPACING.lg }}>⚠️</Text>
+            <MaterialIcons name="error-outline" size={48} color={COLORS.error} style={{ marginBottom: SPACING.lg }} />
             <Text style={styles.loadingTitle}>Analysis Failed</Text>
             <Text style={[styles.loadingSub, { textAlign: 'center', marginBottom: SPACING.xl }]}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={runAnalysis}>
               <Text style={styles.retryText}>Retry Analysis</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={[styles.retryText, { color: COLORS.textMuted, marginTop: SPACING.md }]}>
-                ← Go Back
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ flexDirection: 'row', alignItems: 'center', marginTop: SPACING.md }}>
+              <MaterialIcons name="arrow-back" size={16} color={COLORS.textMuted} />
+              <Text style={[styles.retryText, { color: COLORS.textMuted, marginLeft: 4 }]}>
+                Go Back
               </Text>
             </TouchableOpacity>
           </View>
@@ -128,7 +141,7 @@ const ResultScreen = ({ route, navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
-          <Text style={styles.backText}>‹</Text>
+          <MaterialIcons name="chevron-left" size={28} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Analysis Result</Text>
         <View style={styles.statusBadge}>
@@ -139,10 +152,10 @@ const ResultScreen = ({ route, navigation }) => {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Video Player */}
         <View style={styles.videoCard}>
-          {videoUri ? (
+          {fluffyVideoUrl || videoUri ? (
             <Video
               ref={videoRef}
-              source={{ uri: videoUri }}
+              source={{ uri: fluffyVideoUrl || videoUri }}
               style={styles.video}
               resizeMode={ResizeMode.COVER}
               useNativeControls
@@ -158,12 +171,12 @@ const ResultScreen = ({ route, navigation }) => {
 
         {/* Speed & Frames */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { borderColor: COLORS.blue }]}>
-            <Text style={[styles.statVal, { color: COLORS.blue }]}>{result?.speed || '—'}</Text>
+          <View style={[styles.statCard, { borderColor: COLORS.primary }]}>
+            <Text style={[styles.statVal, { color: COLORS.primary }]}>{result?.speed || '—'}</Text>
             <Text style={styles.statLabel}>Ball Speed</Text>
           </View>
-          <View style={[styles.statCard, { borderColor: COLORS.green }]}>
-            <Text style={[styles.statVal, { color: COLORS.green }]}>
+          <View style={[styles.statCard, { borderColor: COLORS.success }]}>
+            <Text style={[styles.statVal, { color: COLORS.success }]}>
               {result?.detections?.length ?? 0} frames
             </Text>
             <Text style={styles.statLabel}>Tracked</Text>
@@ -176,8 +189,8 @@ const ResultScreen = ({ route, navigation }) => {
           <Svg width={SVG_WIDTH} height={SVG_HEIGHT} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}>
             <Defs>
               <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor={COLORS.green} stopOpacity="1" />
-                <Stop offset="1" stopColor={COLORS.blue} stopOpacity="1" />
+                <Stop offset="0" stopColor={COLORS.success} stopOpacity="1" />
+                <Stop offset="1" stopColor={COLORS.primary} stopOpacity="1" />
               </LinearGradient>
             </Defs>
             {/* Grid lines */}
@@ -202,11 +215,11 @@ const ResultScreen = ({ route, navigation }) => {
             {normalizedPoints.length > 0 && (
               <>
                 <Circle cx={normalizedPoints[0][0]} cy={normalizedPoints[0][1]}
-                  r="6" fill={COLORS.green} opacity="0.9" />
+                  r="6" fill={COLORS.success} opacity="0.9" />
                 <Circle
                   cx={normalizedPoints[normalizedPoints.length - 1][0]}
                   cy={normalizedPoints[normalizedPoints.length - 1][1]}
-                  r="6" fill={COLORS.blue} opacity="0.9" />
+                  r="6" fill={COLORS.primary} opacity="0.9" />
               </>
             )}
 
@@ -253,76 +266,76 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bgPrimary },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md,
-    backgroundColor: COLORS.bgSecondary, borderBottomWidth: 0.5, borderBottomColor: COLORS.bgBorder,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
+    backgroundColor: COLORS.bgSecondary, borderBottomWidth: 1, borderBottomColor: COLORS.bgBorder,
   },
   backBtn: {
     backgroundColor: COLORS.bgInput, borderWidth: 0.5, borderColor: COLORS.bgBorder,
     borderRadius: RADIUS.sm, width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
   },
   backText: { color: COLORS.textPrimary, fontSize: 20 },
-  headerTitle: { color: COLORS.textPrimary, fontSize: 15, ...FONTS.semibold },
-  statusBadge: { backgroundColor: '#0d2a1a', borderRadius: RADIUS.sm, paddingHorizontal: 10, paddingVertical: 4 },
-  statusText: { color: COLORS.green, fontSize: 11, ...FONTS.semibold },
-  scroll: { padding: SPACING.lg },
+  headerTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold },
+  statusBadge: { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderRadius: RADIUS.sm, paddingHorizontal: 10, paddingVertical: 4 },
+  statusText: { color: COLORS.success, fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
+  scroll: { padding: SPACING.sm },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl },
   loadingCard: {
-    backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.xl,
-    borderWidth: 0.5, borderColor: COLORS.bgBorder, padding: SPACING.xxxl,
+    backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.lg,
+    borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.lg,
     alignItems: 'center', width: '100%',
   },
   loadingEmoji: { fontSize: 48, marginBottom: SPACING.xl },
-  loadingTitle: { color: COLORS.textPrimary, fontSize: 16, ...FONTS.semibold, marginBottom: 6 },
-  loadingSub: { color: COLORS.textMuted, fontSize: 13 },
+  loadingTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold, marginBottom: 6 },
+  loadingSub: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.body },
   progressContainer: { marginTop: SPACING.lg, width: '100%', alignItems: 'center' },
   progressTrack: { width: '100%', height: 4, backgroundColor: COLORS.bgBorder, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: COLORS.blue, borderRadius: 2 },
-  progressText: { color: COLORS.textMuted, fontSize: 11, marginTop: 6 },
-  retryBtn: { backgroundColor: COLORS.blue, borderRadius: RADIUS.md, paddingVertical: 12, paddingHorizontal: 32 },
-  retryText: { color: '#fff', fontSize: 14, ...FONTS.medium, textAlign: 'center' },
+  progressFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 2 },
+  progressText: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, marginTop: 6 },
+  retryBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 12, paddingHorizontal: 32 },
+  retryText: { color: '#fff', fontSize: TYPOGRAPHY.body, ...FONTS.semibold, textAlign: 'center' },
   videoCard: {
-    borderRadius: RADIUS.lg, overflow: 'hidden',
-    borderWidth: 0.5, borderColor: COLORS.bgBorder, marginBottom: SPACING.md,
+    borderRadius: RADIUS.md, overflow: 'hidden',
+    borderWidth: 1, borderColor: COLORS.bgBorder, marginBottom: SPACING.md,
   },
   video: { width: '100%', height: 200 },
   videoPlaceholder: { backgroundColor: COLORS.bgSecondary, justifyContent: 'center', alignItems: 'center' },
   statsRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md },
   statCard: {
     flex: 1, backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.md,
-    borderWidth: 0.5, padding: SPACING.md, alignItems: 'center',
+    borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md, alignItems: 'center',
   },
-  statVal: { fontSize: 18, ...FONTS.bold },
-  statLabel: { color: COLORS.textMuted, fontSize: 10, marginTop: 3 },
+  statVal: { fontSize: TYPOGRAPHY.title, ...FONTS.semibold },
+  statLabel: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, marginTop: 4 },
   trajectoryCard: {
-    backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.lg,
-    borderWidth: 0.5, borderColor: COLORS.bgBorder, padding: SPACING.lg, marginBottom: SPACING.md,
+    backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md, marginBottom: SPACING.md,
   },
   sectionTitle: {
-    color: COLORS.textMuted, fontSize: 11, ...FONTS.semibold,
-    letterSpacing: 0.8, marginBottom: SPACING.md,
+    color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, ...FONTS.semibold,
+    letterSpacing: 0.8, marginBottom: SPACING.md, textTransform: 'uppercase',
   },
   detectionsCard: {
-    backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.lg,
-    borderWidth: 0.5, borderColor: COLORS.bgBorder, padding: SPACING.lg, marginBottom: SPACING.md,
+    backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md, marginBottom: SPACING.lg,
   },
   detRow: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
-    borderBottomWidth: 0.5, borderBottomColor: COLORS.bgBorder, gap: SPACING.sm,
+    borderBottomWidth: 1, borderBottomColor: COLORS.bgBorder, gap: SPACING.sm,
   },
   frameBadge: {
-    backgroundColor: COLORS.bgHighlight, borderRadius: 6,
-    paddingHorizontal: 8, paddingVertical: 3, minWidth: 64, alignItems: 'center',
+    backgroundColor: COLORS.bgHighlight, borderRadius: 4,
+    paddingHorizontal: 8, paddingVertical: 4, minWidth: 64, alignItems: 'center',
   },
-  frameText: { color: COLORS.blue, fontSize: 10, ...FONTS.semibold },
-  coordText: { color: COLORS.textSecondary, fontSize: 12, flex: 1 },
+  frameText: { color: COLORS.primary, fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
+  coordText: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.small, flex: 1 },
   confBar: { width: 52, height: 4, backgroundColor: COLORS.bgBorder, borderRadius: 2, overflow: 'hidden' },
-  confFill: { height: '100%', backgroundColor: COLORS.green, borderRadius: 2 },
-  moreText: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center', marginTop: SPACING.sm },
+  confFill: { height: '100%', backgroundColor: COLORS.success, borderRadius: 2 },
+  moreText: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, textAlign: 'center', marginTop: SPACING.sm },
   newAnalysisBtn: {
-    borderWidth: 0.5, borderColor: COLORS.blue, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.primary, borderRadius: RADIUS.md,
     paddingVertical: 14, alignItems: 'center', marginBottom: SPACING.xl,
   },
-  newAnalysisText: { color: COLORS.blue, fontSize: 14, ...FONTS.semibold },
+  newAnalysisText: { color: COLORS.primary, fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
 });
 
 export default ResultScreen;

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  StyleSheet, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../utils/AuthContext';
-import { COLORS, RADIUS, SPACING, FONTS } from '../utils/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import { COLORS, RADIUS, SPACING, FONTS, TYPOGRAPHY } from '../utils/theme';
 
 
 // ✅ MOVED OUTSIDE (FIXES KEYBOARD ISSUE)
@@ -67,10 +68,7 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   const handleRegister = async () => {
-    console.log('FORM DATA:', form);
-
     if (!validate()) return;
-
     setLoading(true);
 
     try {
@@ -80,12 +78,14 @@ const RegisterScreen = ({ navigation }) => {
         form.password
       );
 
-      console.log('REGISTER RESULT:', result);
-
       if (result.success) {
-        Alert.alert('Account Created!', 'You can now sign in.', [
-          { text: 'Sign In', onPress: () => navigation.navigate('Login') },
-        ]);
+        if (!result.autoLogin) {
+          Alert.alert('Account Created!', 'You can now sign in.', [
+            { text: 'Sign In', onPress: () => navigation.navigate('Login') },
+          ]);
+        }
+        // If autoLogin is true, the AuthContext updates the user state 
+        // and RootNavigator automatically switches to MainNavigator!
       } else {
         Alert.alert('Registration Failed', result.error || 'Unknown error');
       }
@@ -112,12 +112,10 @@ const RegisterScreen = ({ navigation }) => {
               onPress={() => navigation.goBack()}
               style={styles.backBtn}
             >
-              <Text style={styles.backArrow}>‹</Text>
+              <MaterialIcons name="chevron-left" size={28} color={COLORS.textPrimary} />
             </TouchableOpacity>
 
-            <View style={styles.logoIcon}>
-              <Text style={{ fontSize: 28 }}>🏏</Text>
-            </View>
+            <Image source={require('../assets/logo.png')} style={styles.logoIcon} />
 
             <Text style={styles.logoTitle}>Create Account</Text>
           </View>
@@ -174,8 +172,9 @@ const RegisterScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.linkText}>← Back to Login</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: SPACING.lg }}>
+              <MaterialIcons name="arrow-back" size={14} color={COLORS.primary} />
+              <Text style={[styles.linkText, { marginTop: 0, marginLeft: 6 }]}>Back to Login</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -202,7 +201,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     backgroundColor: COLORS.bgSecondary,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: COLORS.bgBorder,
     borderRadius: RADIUS.md,
     width: 38,
@@ -214,50 +213,50 @@ const styles = StyleSheet.create({
   logoIcon: {
     width: 64,
     height: 64,
-    borderRadius: 20,
-    backgroundColor: COLORS.blueDark,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   logoTitle: {
     color: COLORS.textPrimary,
-    fontSize: 20,
+    fontSize: TYPOGRAPHY.title,
     ...FONTS.semibold,
   },
   card: {
-    backgroundColor: COLORS.bgSecondary,
-    borderRadius: RADIUS.xl,
-    borderWidth: 0.5,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
     borderColor: COLORS.bgBorder,
-    padding: SPACING.xxl,
+    padding: SPACING.lg,
   },
-  formGroup: { marginBottom: SPACING.lg },
+  formGroup: { marginBottom: SPACING.md },
   label: {
     color: COLORS.textMuted,
-    fontSize: 11,
-    ...FONTS.medium,
+    fontSize: TYPOGRAPHY.small,
+    ...FONTS.semibold,
     letterSpacing: 0.8,
     marginBottom: 6,
   },
   input: {
     backgroundColor: COLORS.bgInput,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: COLORS.bgBorder,
     borderRadius: RADIUS.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: COLORS.textPrimary,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.body,
   },
   inputError: { borderColor: COLORS.error },
   errorText: {
     color: COLORS.error,
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.small,
     marginTop: 4,
   },
   btnPrimary: {
-    backgroundColor: COLORS.blue,
+    backgroundColor: COLORS.primary,
     borderRadius: RADIUS.md,
     paddingVertical: 14,
     alignItems: 'center',
@@ -265,12 +264,12 @@ const styles = StyleSheet.create({
   },
   btnText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.body,
     ...FONTS.semibold,
   },
   linkText: {
-    color: COLORS.blue,
-    fontSize: 13,
+    color: COLORS.primary,
+    fontSize: TYPOGRAPHY.body,
     textAlign: 'center',
     marginTop: SPACING.lg,
   },

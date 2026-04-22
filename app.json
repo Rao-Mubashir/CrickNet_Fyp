@@ -4,12 +4,12 @@
     "slug": "cricket-vision",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./src/assets/logo.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0a0f1e"
+      "image": "./src/assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": false,
@@ -22,8 +22,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0a0f1e"
+        "foregroundImage": "./src/assets/logo.png",
+        "backgroundColor": "#000000"
       },
       "package": "com.yourname.cricketvision",
       "permissions": [
@@ -34,7 +34,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./src/assets/logo.png"
     },
     "plugins": [
       [

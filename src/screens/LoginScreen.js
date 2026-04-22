@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  StyleSheet, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../utils/AuthContext';
-import { COLORS, RADIUS, SPACING, FONTS } from '../utils/theme';
+import { COLORS, RADIUS, SPACING, FONTS, TYPOGRAPHY } from '../utils/theme';
 
 const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
@@ -40,10 +40,8 @@ const LoginScreen = ({ navigation }) => {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Logo */}
           <View style={styles.logoArea}>
-            <View style={styles.logoIcon}>
-              <Text style={styles.logoEmoji}>🏏</Text>
-            </View>
-            <Text style={styles.logoTitle}>Cricket Vision</Text>
+            <Image source={require('../assets/logo.png')} style={styles.logoIcon} />
+            <Text style={styles.logoTitle}>CrickVision</Text>
             <Text style={styles.logoSub}>AI Umpire Assistant</Text>
           </View>
 
@@ -100,35 +98,35 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bgPrimary },
   scroll: { flexGrow: 1, paddingHorizontal: SPACING.xl, paddingTop: SPACING.xxl },
-  logoArea: { alignItems: 'center', marginBottom: SPACING.xxxl, marginTop: SPACING.xl },
+  logoArea: { alignItems: 'center', marginBottom: SPACING.xl, marginTop: SPACING.xl },
   logoIcon: {
-    width: 72, height: 72, borderRadius: 22,
-    backgroundColor: COLORS.blueDark,
+    width: 72, height: 72, borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.primaryDark,
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
   logoEmoji: { fontSize: 34 },
-  logoTitle: { color: COLORS.textPrimary, fontSize: 22, ...FONTS.semibold, letterSpacing: 0.3 },
-  logoSub: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
+  logoTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.title, ...FONTS.semibold, letterSpacing: 0.3 },
+  logoSub: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.body, marginTop: 4 },
   card: {
-    backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.xl,
-    borderWidth: 0.5, borderColor: COLORS.bgBorder, padding: SPACING.xxl,
+    backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg,
+    borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.lg,
   },
-  cardTitle: { color: COLORS.textPrimary, fontSize: 18, ...FONTS.semibold, marginBottom: SPACING.xl },
-  formGroup: { marginBottom: SPACING.lg },
-  label: { color: COLORS.textMuted, fontSize: 11, ...FONTS.medium, letterSpacing: 0.8, marginBottom: 6 },
+  cardTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold, marginBottom: SPACING.lg },
+  formGroup: { marginBottom: SPACING.md },
+  label: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, ...FONTS.semibold, letterSpacing: 0.8, marginBottom: 6 },
   input: {
-    backgroundColor: COLORS.bgInput, borderWidth: 0.5, borderColor: COLORS.bgBorder,
+    backgroundColor: COLORS.bgInput, borderWidth: 1, borderColor: COLORS.bgBorder,
     borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 12,
-    color: COLORS.textPrimary, fontSize: 14,
+    color: COLORS.textPrimary, fontSize: TYPOGRAPHY.body,
   },
   inputError: { borderColor: COLORS.error },
-  errorText: { color: COLORS.error, fontSize: 11, marginTop: 4 },
+  errorText: { color: COLORS.error, fontSize: TYPOGRAPHY.small, marginTop: 4 },
   btnPrimary: {
-    backgroundColor: COLORS.blue, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary, borderRadius: RADIUS.md,
     paddingVertical: 14, alignItems: 'center', marginTop: SPACING.sm,
   },
-  btnText: { color: '#fff', fontSize: 15, ...FONTS.semibold },
-  linkText: { color: COLORS.blue, fontSize: 13, textAlign: 'center', marginTop: SPACING.lg },
+  btnText: { color: '#fff', fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
+  linkText: { color: COLORS.primary, fontSize: TYPOGRAPHY.body, textAlign: 'center', marginTop: SPACING.lg },
 });
 
 export default LoginScreen;

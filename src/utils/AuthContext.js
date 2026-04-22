@@ -45,24 +45,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-const register = async (name, email, password) => {
-  try {
-    const res = await registerUser(name, email, password);
-    console.log("REGISTER SUCCESS:", res);
-    return { success: true };
-  } catch (error) {
-    console.log("REGISTER ERROR FULL:", error);
-    console.log("REGISTER ERROR RESPONSE:", error?.response);
-    console.log("REGISTER ERROR DATA:", error?.response?.data);
+  const register = async (name, email, password) => {
+    try {
+      const res = await registerUser(name, email, password);
+      console.log("REGISTER SUCCESS:", res);
+      
+      // Auto-login right after registration
+      const loginRes = await login(email, password);
+      if (loginRes.success) {
+        return { success: true, autoLogin: true };
+      }
+      
+      return { success: true, autoLogin: false };
+    } catch (error) {
+      console.log("REGISTER ERROR FULL:", error);
+      
+      const message =
+        error.response?.data?.detail ||
+        error.message ||
+        'Registration failed. Please try again.';
 
-    const message =
-      error.response?.data?.detail ||
-      error.message ||
-      'Registration failed. Please try again.';
-
-    return { success: false, error: message };
-  }
-};
+      return { success: false, error: message };
+    }
+  };
 
   const logout = async () => {
     try {

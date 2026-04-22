@@ -5,6 +5,8 @@ Main application entry point
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 from app.config import API_TITLE, API_VERSION
 from app.auth.routes import router as auth_router
@@ -25,6 +27,11 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(analysis_router)
+
+# Mount static directory for video files
+from app.config import UPLOAD_DIR
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
 
 
 @app.get("/")
