@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   logoArea: { alignItems: 'center', marginBottom: SPACING.xl, marginTop: SPACING.xl },
   logoIcon: {
     width: 72, height: 72, borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.primaryDark,
+    backgroundColor: 'transparent',
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
   logoEmoji: { fontSize: 34 },

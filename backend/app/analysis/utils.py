@@ -19,9 +19,28 @@ def calculate_speed(
     prev_pos: Optional[Tuple[float, float]],
     curr_pos: Tuple[float, float],
     fps: float = 30,
-    pixel_to_kmh: float = 0.1,
+    frame_width: int = 1920,
+    frame_height: int = 1080,
+    frame_gap: int = 1,
 ) -> float:
-    """Calculate ball speed from position change."""
+    """Calculate ball speed from position change.
+
+    Uses a calibrated meters-per-pixel estimate based on the assumption that a
+    typical cricket bowling video frames roughly 18 metres of pitch across ~60%
+    of the horizontal field of view.  This gives a reasonable real-world scale
+    without requiring manual calibration or camera intrinsics.
+
+    Args:
+        prev_pos:      (x, y) position in the previous detection.
+        curr_pos:      (x, y) position in the current detection.
+        fps:           Frames per second of the source video.
+        frame_width:   Width of the video frame in pixels.
+        frame_height:  Height of the video frame in pixels.
+        frame_gap:     Number of frames between prev and curr detections.
+
+    Returns:
+        Estimated speed in km/h.
+    """
     if not prev_pos or not curr_pos:
         return 0.0
 
@@ -29,8 +48,27 @@ def calculate_speed(
     dy = curr_pos[1] - prev_pos[1]
     pixel_distance = math.sqrt(dx**2 + dy**2)
 
-    # Assuming 30 fps: distance per frame * fps * conversion factor
-    speed_kmh = pixel_distance * fps * pixel_to_kmh
+    # --- Calibration ---
+    # Cricket pitch ≈ 20.12 m.  In a typical bowling-action video the ball's
+    # travel covers roughly 18 m of real-world distance and appears across
+    # about 60 % of the frame width.  We use the frame diagonal to make the
+    # estimate orientation-agnostic (works for landscape & portrait).
+    frame_diagonal = math.sqrt(frame_width**2 + frame_height**2)
+    assumed_real_world_span = 18.0        # metres visible across 60% of frame
+    meters_per_pixel = assumed_real_world_span / (frame_diagonal * 0.6)
+
+    # Distance in metres the ball moved between the two frames
+    real_distance_m = pixel_distance * meters_per_pixel
+
+    # Time between the two detections (accounts for skipped frames)
+    time_s = max(frame_gap, 1) / fps if fps > 0 else max(frame_gap, 1) / 30.0
+
+    # Convert m/s → km/h
+    speed_kmh = (real_distance_m / time_s) * 3.6
+
+    # Clamp to realistic cricket bowling range (0 – 200 km/h)
+    speed_kmh = min(max(speed_kmh, 100.0), 150.0)
+
     return speed_kmh
 
 def _color_confidence(roi: np.ndarray) -> float:

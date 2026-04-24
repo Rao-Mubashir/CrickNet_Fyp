@@ -1,14 +1,6 @@
 import axios from 'axios';
 
-// ─── IMPORTANT ────────────────────────────────────────────────────────────────
-// Replace with your computer's actual IP address on your local network.
-// Do NOT use localhost or 127.0.0.1 — it won't work on a physical device.
-// To find your IP:
-//   • Windows: run `ipconfig` → look for IPv4 Address
-//   • Mac/Linux: run `ifconfig` → look for inet address
-// Example: const BASE_URL = 'http://192.168.1.105:8000';
-// ──────────────────────────────────────────────────────────────────────────────
-export const BASE_URL = 'http://172.26.4.160:8000';
+export const BASE_URL = 'http://10.118.130.226:8000';
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 120000, // 2 min timeout for large videos
@@ -85,18 +77,7 @@ export const analyzeVideo = async (videoUri, onProgress) => {
   return response.data;
 };
 
-/**
- * Expected response shape from /analyze:
- * {
- *   speed: "135 km/h",
- *   trajectory: [[100,200],[120,220],[140,250], ...],
- *   detections: [
- *     { frame: 1, x: 120, y: 200, confidence: 0.95 },
- *     { frame: 2, x: 140, y: 220, confidence: 0.92 },
- *     ...
- *   ]
- * }
- */
+
 
 /**
  * Send a video file to the backend to generate the fluffy trajectory video.

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Cricket Vision",
-    "slug": "cricket-vision",
+    "name": "CrickVision",
+    "slug": "crickvision",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/logo.png",
@@ -13,11 +13,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourname.cricketvision",
+      "bundleIdentifier": "com.yourname.crickvision",
       "infoPlist": {
-        "NSCameraUsageDescription": "Cricket Vision needs camera access to record cricket deliveries for AI analysis.",
-        "NSMicrophoneUsageDescription": "Cricket Vision needs microphone access when recording video.",
-        "NSPhotoLibraryUsageDescription": "Cricket Vision needs gallery access to select videos for analysis."
+        "NSCameraUsageDescription": "CrickVision needs camera access to record cricket deliveries for AI analysis.",
+        "NSMicrophoneUsageDescription": "CrickVision needs microphone access when recording video.",
+        "NSPhotoLibraryUsageDescription": "CrickVision needs gallery access to select videos for analysis."
       }
     },
     "android": {
@@ -25,7 +25,7 @@
         "foregroundImage": "./src/assets/logo.png",
         "backgroundColor": "#000000"
       },
-      "package": "com.yourname.cricketvision",
+      "package": "com.yourname.crickvision",
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
@@ -40,13 +40,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Cricket Vision to access your camera to record deliveries."
+          "cameraPermission": "Allow CrickVision to access your camera to record deliveries."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Cricket Vision to access your photo library."
+          "photosPermission": "Allow CrickVision to access your photo library."
         }
       ]
     ]

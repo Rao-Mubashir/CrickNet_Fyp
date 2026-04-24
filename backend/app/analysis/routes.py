@@ -50,6 +50,7 @@ async def analyze_video(
         detections = []
         speeds = []
         prev_pos = None
+        prev_frame = None
 
         for entry in raw_data:
             x_center = entry['x']
@@ -66,19 +67,22 @@ async def analyze_video(
                 )
             )
 
-            if prev_pos:
+            if prev_pos and prev_frame is not None:
+                frame_gap = max(entry['frame'] - prev_frame, 1)
                 speed = calculate_speed(
-                    prev_pos, (x_center, y_center), fps=fps
+                    prev_pos, (x_center, y_center), fps=fps,
+                    frame_width=width, frame_height=height,
+                    frame_gap=frame_gap
                 )
                 speeds.append(speed)
 
             prev_pos = (x_center, y_center)
+            prev_frame = entry['frame']
 
-        # Calculate average and max speed
+        # Calculate average speed
         avg_speed = sum(speeds) / len(speeds) if speeds else 0.0
-        max_speed = max(speeds) if speeds else 0.0
 
-        speed_str = f"{max_speed:.1f} km/h (avg: {avg_speed:.1f} km/h)"
+        speed_str = f"{avg_speed:.1f} km/h"
 
         processing_time = round(time.time() - start_time, 2)
 
