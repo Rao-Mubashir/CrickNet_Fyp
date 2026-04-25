@@ -4,17 +4,13 @@ import os
 import time
 import uuid
 import shutil
+import subprocess
+import asyncio
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 
 from app.analysis.models import AnalysisResult, Detection
-from app.analysis.utils import (
-    load_yolo_model, 
-    calculate_speed,
-    extract_ball_coordinates,
-    smooth_trajectory,
-    draw_fluffy_trajectory
-)
+from app.analysis.utils import run_full_analysis
 from app.auth.utils import get_current_user
 from app.config import UPLOAD_DIR
 from app.database.client import get_db_client
@@ -22,105 +18,6 @@ from app.database.models import AnalysisCreate
 
 router = APIRouter(tags=["analysis"])
 db = get_db_client()
-
-
-@router.post("/analyze", response_model=AnalysisResult)
-async def analyze_video(
-    file: UploadFile = File(...),
-    user: dict = Depends(get_current_user),
-) -> dict:
-    """Analyze cricket delivery video and detect ball speed/trajectory"""
-
-    # Save uploaded file temporarily
-    temp_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}.mp4")
-    with open(temp_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-
-    start_time = time.time()
-
-    try:
-        # Load YOLO model
-        model = load_yolo_model()
-
-        # Single source of truth: use extract_ball_coordinates from utils
-        raw_data, fps, width, height, total_frames = extract_ball_coordinates(temp_path, model)
-
-        # Build trajectory, detections, and speeds from raw_data
-        trajectory = []
-        detections = []
-        speeds = []
-        prev_pos = None
-        prev_frame = None
-
-        for entry in raw_data:
-            x_center = entry['x']
-            y_center = entry['y']
-
-            trajectory.append([x_center, y_center])
-
-            detections.append(
-                Detection(
-                    frame=entry['frame'],
-                    x=x_center,
-                    y=y_center,
-                    confidence=1.0,  # YOLO conf already filtered in extract_ball_coordinates
-                )
-            )
-
-            if prev_pos and prev_frame is not None:
-                frame_gap = max(entry['frame'] - prev_frame, 1)
-                speed = calculate_speed(
-                    prev_pos, (x_center, y_center), fps=fps,
-                    frame_width=width, frame_height=height,
-                    frame_gap=frame_gap
-                )
-                speeds.append(speed)
-
-            prev_pos = (x_center, y_center)
-            prev_frame = entry['frame']
-
-        # Calculate average speed
-        avg_speed = sum(speeds) / len(speeds) if speeds else 0.0
-
-        speed_str = f"{avg_speed:.1f} km/h"
-
-        processing_time = round(time.time() - start_time, 2)
-
-        result = {
-            "speed": speed_str,
-            "trajectory": trajectory,
-            "detections": [d.dict() for d in detections],
-            "processing_time": processing_time,
-        }
-
-        # Save analysis to Supabase database
-        try:
-            analysis_data = AnalysisCreate(
-                user_id=user["id"],
-                speed=speed_str,
-                trajectory=trajectory,
-                detections=[d.dict() for d in detections],
-                processing_time=processing_time,
-            )
-            saved_analysis = await db.save_analysis_result(analysis_data)
-            result["analysis_id"] = str(saved_analysis.id)
-
-        except Exception as e:
-            # Log error but still return the analysis result
-            print(f"Warning: Failed to save analysis to database: {str(e)}")
-
-        return result
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
-
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-
-
-import asyncio
 
 def cleanup_files(*file_paths):
     """Background task to remove temporary files after response is sent"""
@@ -136,14 +33,14 @@ async def delayed_cleanup(*file_paths, delay_seconds=300):
     await asyncio.sleep(delay_seconds)
     cleanup_files(*file_paths)
 
-@router.post("/analyze/fluffy")
-async def analyze_video_fluffy(
+@router.post("/analyze", response_model=AnalysisResult)
+async def analyze_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
-):
-    """Analyze video and return a new video with a fluffy trajectory tail"""
-    
+) -> dict:
+    """Analyze cricket delivery video and detect ball speed/trajectory"""
+
     # Save uploaded file temporarily
     file_id = str(uuid.uuid4())
     temp_input_path = os.path.join(UPLOAD_DIR, f"{file_id}_in.mp4")
@@ -152,34 +49,71 @@ async def analyze_video_fluffy(
     with open(temp_input_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
+    # Generate unique temporary files for coordinates
+    temp_coords_path = os.path.join(UPLOAD_DIR, f"{file_id}_coords.txt")
+    temp_no_spin_path = os.path.join(UPLOAD_DIR, f"{file_id}_no_spin.txt")
+
+    start_time = time.time()
+
     try:
-        # Load YOLO model
-        model = load_yolo_model()
+        # Run full analysis using Subprocess on NewLogic scripts
+        analysis = run_full_analysis(temp_input_path, temp_coords_path, temp_no_spin_path)
+
+        # Draw overlay trajectory using subprocess
+        import sys
+        print(f"Running overlay.py on {temp_input_path} -> {temp_output_path}...")
+        subprocess.run([sys.executable, "app/analysis/overlay.py", temp_input_path, temp_output_path, temp_coords_path, temp_no_spin_path], check=True)
         
-        # Pass 1: Extract coordinates
-        raw_data, fps, width, height, total_frames = extract_ball_coordinates(temp_input_path, model)
-        
-        # Smooth and fill gaps
-        df = smooth_trajectory(raw_data, total_frames)
-        
-        # Pass 2: Draw fluffy trajectory and save
-        draw_fluffy_trajectory(temp_input_path, temp_output_path, df, fps, width, height)
-        
-        # Check if output video was created
-        if not os.path.exists(temp_output_path):
-            raise HTTPException(status_code=500, detail="Failed to generate output video")
-            
         # Clean up input immediately, keep output for 5 minutes so it can be viewed
-        background_tasks.add_task(cleanup_files, temp_input_path)
+        background_tasks.add_task(cleanup_files, temp_input_path, temp_coords_path, temp_no_spin_path)
         background_tasks.add_task(delayed_cleanup, temp_output_path, delay_seconds=300)
-            
-        return {
-            "message": "Analysis complete",
-            "video_url": f"/static/{file_id}_out.mp4"
+
+        processing_time = round(time.time() - start_time, 2)
+
+        result = {
+            "speed": analysis["speed"],
+            "trajectory": analysis["trajectory"],
+            "predicted_trajectory": analysis["predicted_trajectory"],
+            "detections": analysis["detections"],
+            "processing_time": processing_time,
+            "bounce_frame": analysis["bounce_frame"],
+            "spin_angle": analysis["spin_angle"],
+            "spin_direction": analysis["spin_direction"],
+            "total_frames": analysis["total_frames"],
+            "frames_detected": analysis["frames_detected"],
+            "fps": analysis["fps"],
+            "video_width": analysis["video_width"],
+            "video_height": analysis["video_height"],
+            "video_url": f"/static/{file_id}_out.mp4",
         }
 
+        # Save analysis to Supabase database
+        try:
+            analysis_data = AnalysisCreate(
+                user_id=user["id"],
+                speed=analysis["speed"],
+                trajectory=analysis["trajectory"],
+                predicted_trajectory=analysis["predicted_trajectory"],
+                detections=analysis["detections"],
+                processing_time=processing_time,
+                bounce_frame=analysis["bounce_frame"],
+                spin_angle=analysis["spin_angle"],
+                spin_direction=analysis["spin_direction"],
+                total_frames=analysis["total_frames"],
+                frames_detected=analysis["frames_detected"],
+                fps=analysis["fps"],
+            )
+            saved_analysis = await db.save_analysis_result(analysis_data)
+            result["analysis_id"] = str(saved_analysis.id)
+
+        except Exception as e:
+            # Log error but still return the analysis result
+            print(f"Warning: Failed to save analysis to database: {str(e)}")
+
+        return result
+
     except Exception as e:
-        background_tasks.add_task(cleanup_files, temp_input_path, temp_output_path)
+        background_tasks.add_task(cleanup_files, temp_input_path, temp_output_path, temp_coords_path, temp_no_spin_path)
         raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
 
 

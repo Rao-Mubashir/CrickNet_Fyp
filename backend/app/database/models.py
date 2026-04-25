@@ -38,8 +38,15 @@ class AnalysisDB(BaseModel):
     user_id: UUID
     speed: str
     trajectory: list
+    predicted_trajectory: Optional[list] = None
     detections: list
     processing_time: float
+    bounce_frame: Optional[int] = None
+    spin_angle: Optional[float] = None
+    spin_direction: Optional[str] = None
+    total_frames: Optional[int] = None
+    frames_detected: Optional[int] = None
+    fps: Optional[int] = None
     created_at: datetime
 
     class Config:
@@ -51,5 +58,12 @@ class AnalysisCreate(BaseModel):
     user_id: UUID
     speed: str
     trajectory: list
+    predicted_trajectory: Optional[list] = None
     detections: list
     processing_time: float
+    bounce_frame: Optional[int] = None
+    spin_angle: Optional[float] = None
+    spin_direction: Optional[str] = None
+    total_frames: Optional[int] = None
+    frames_detected: Optional[int] = None
+    fps: Optional[int] = None

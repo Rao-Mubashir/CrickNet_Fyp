@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
 import Svg, { Polyline, Circle, Text as SvgText, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { MaterialIcons } from '@expo/vector-icons';
-import { analyzeVideo, analyzeFluffyVideo, BASE_URL } from '../services/api';
+import { analyzeVideo, BASE_URL } from '../services/api';
 import { COLORS, RADIUS, SPACING, FONTS, TYPOGRAPHY } from '../utils/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -40,20 +40,20 @@ const ResultScreen = ({ route, navigation }) => {
 
     try {
       setLoadingStage('Uploading video...');
-      
-      // Run the standard analysis for stats
+
+      // Run the standard analysis for stats and video
       const data = await analyzeVideo(videoUri, (pct) => {
         setUploadProgress(pct);
-        if (pct >= 100) setLoadingStage('AI model analyzing...');
-        if (pct >= 100) setTimeout(() => setLoadingStage('Generating trajectory...'), 1000);
+        if (pct >= 100) {
+          setLoadingStage('Tracking ball trajectory...');
+          setTimeout(() => setLoadingStage('Calculating physics and spin...'), 8000);
+          setTimeout(() => setLoadingStage('Generating video overlay...'), 16000);
+        }
       });
       setResult(data);
 
-      // In the background or sequentially, run the fluffy video generation
-      setLoadingStage('Generating fluffy video...');
-      const fluffyData = await analyzeFluffyVideo(videoUri);
-      if (fluffyData?.video_url) {
-        setFluffyVideoUrl(BASE_URL + fluffyData.video_url);
+      if (data?.video_url) {
+        setFluffyVideoUrl(BASE_URL + data.video_url);
       }
 
     } catch (err) {
@@ -69,21 +69,40 @@ const ResultScreen = ({ route, navigation }) => {
     }
   };
 
-  // Normalize trajectory coordinates to fit SVG viewport
-  const normalizeTrajectory = (trajectory) => {
-    if (!trajectory || trajectory.length === 0) return [];
-    const xs = trajectory.map((p) => p[0]);
-    const ys = trajectory.map((p) => p[1]);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
+  // Normalize dual trajectories to fit SVG viewport
+  const normalizeTrajectories = (actual, predicted) => {
+    if (!actual || actual.length === 0) return { actualNorm: [], predictedNorm: [] };
+    
+    // Find absolute bounds across BOTH trajectories
+    const allX = [...actual.map(p => p[0]), ...(predicted || []).map(p => p[0])];
+    const allY = [...actual.map(p => p[1]), ...(predicted || []).map(p => p[1])];
+    
+    if (allX.length === 0) return { actualNorm: [], predictedNorm: [] };
+    
+    const minX = Math.min(...allX), maxX = Math.max(...allX);
+    const minY = Math.min(...allY), maxY = Math.max(...allY);
     const rangeX = maxX - minX || 1;
     const rangeY = maxY - minY || 1;
     const pad = 20;
-    return trajectory.map((p) => [
+
+    const transform = (p) => [
       pad + ((p[0] - minX) / rangeX) * (SVG_WIDTH - pad * 2),
-      pad + ((p[1] - minY) / rangeY) * (SVG_HEIGHT - pad * 2),
-    ]);
+      pad + ((p[1] - minY) / rangeY) * (SVG_HEIGHT - pad * 2)
+    ];
+
+    return {
+      actualNorm: actual.map(transform),
+      predictedNorm: (predicted || []).map(transform)
+    };
   };
+
+  const { actualNorm, predictedNorm } = normalizeTrajectories(
+    result?.trajectory || [],
+    result?.predicted_trajectory || []
+  );
+
+  const actualPolyline = actualNorm.map(p => `${p[0]},${p[1]}`).join(' ');
+  const predictedPolyline = predictedNorm.map(p => `${p[0]},${p[1]}`).join(' ');
 
   // ── Loading State ────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -133,9 +152,6 @@ const ResultScreen = ({ route, navigation }) => {
     );
   }
 
-  const normalizedPoints = normalizeTrajectory(result?.trajectory || []);
-  const polylinePoints = normalizedPoints.map((p) => `${p[0]},${p[1]}`).join(' ');
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -143,7 +159,7 @@ const ResultScreen = ({ route, navigation }) => {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
           <MaterialIcons name="chevron-left" size={28} color={COLORS.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Analysis Result</Text>
+        <Text style={styles.headerTitle}>CrickVision Analysis</Text>
         <View style={styles.statusBadge}>
           <Text style={styles.statusText}>COMPLETE</Text>
         </View>
@@ -169,88 +185,122 @@ const ResultScreen = ({ route, navigation }) => {
           )}
         </View>
 
-        {/* Speed & Frames */}
+        {/* Speed & Spin Metrics Row */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { borderColor: COLORS.primary }]}>
             <Text style={[styles.statVal, { color: COLORS.primary }]}>{result?.speed || '—'}</Text>
-            <Text style={styles.statLabel}>Ball Speed</Text>
+            <Text style={styles.statLabel}>Avg Speed</Text>
           </View>
-          <View style={[styles.statCard, { borderColor: COLORS.success }]}>
-            <Text style={[styles.statVal, { color: COLORS.success }]}>
-              {result?.detections?.length ?? 0} frames
+          <View style={[styles.statCard, { borderColor: COLORS.error }]}>
+            <Text style={[styles.statVal, { color: COLORS.error }]}>
+              {result?.spin_angle ? `${result.spin_angle}°` : '—'}
             </Text>
-            <Text style={styles.statLabel}>Tracked</Text>
+            <Text style={styles.statLabel}>Spin Angle</Text>
           </View>
         </View>
 
+        {/* Spin Direction Badge */}
+        {result?.spin_direction && (
+          <View style={styles.spinDirectionCard}>
+            <Text style={styles.sectionTitle}>SPIN ANALYSIS</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <MaterialIcons 
+                name={result.spin_direction === 'Turns Right' ? 'turn-right' : result.spin_direction === 'Turns Left' ? 'turn-left' : 'straight'} 
+                size={28} 
+                color={COLORS.textPrimary} 
+              />
+              <Text style={{ color: COLORS.textPrimary, fontSize: 20, marginLeft: 12, ...FONTS.bold }}>
+                {result.spin_direction}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Trajectory SVG */}
         <View style={styles.trajectoryCard}>
-          <Text style={styles.sectionTitle}>BALL TRAJECTORY</Text>
+          <Text style={styles.sectionTitle}>BALL TRAJECTORY (TOP-DOWN VIEW)</Text>
           <Svg width={SVG_WIDTH} height={SVG_HEIGHT} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}>
             <Defs>
-              <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+              <LinearGradient id="actualGrad" x1="0" y1="0" x2="1" y2="0">
                 <Stop offset="0" stopColor={COLORS.success} stopOpacity="1" />
-                <Stop offset="1" stopColor={COLORS.primary} stopOpacity="1" />
+                <Stop offset="1" stopColor="#0ea5e9" stopOpacity="1" />
+              </LinearGradient>
+              <LinearGradient id="predGrad" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={COLORS.error} stopOpacity="0.8" />
+                <Stop offset="1" stopColor={COLORS.error} stopOpacity="0.4" />
               </LinearGradient>
             </Defs>
-            {/* Grid lines */}
-            <Line x1="0" y1={SVG_HEIGHT - 10} x2={SVG_WIDTH} y2={SVG_HEIGHT - 10}
-              stroke={COLORS.bgBorder} strokeWidth="0.5" />
-            <Line x1="10" y1="0" x2="10" y2={SVG_HEIGHT}
-              stroke={COLORS.bgBorder} strokeWidth="0.5" />
 
-            {/* Trajectory path */}
-            {normalizedPoints.length > 1 && (
+            {/* Grid lines */}
+            <Line x1="0" y1={SVG_HEIGHT - 10} x2={SVG_WIDTH} y2={SVG_HEIGHT - 10} stroke={COLORS.bgBorder} strokeWidth="0.5" />
+            <Line x1="10" y1="0" x2="10" y2={SVG_HEIGHT} stroke={COLORS.bgBorder} strokeWidth="0.5" />
+
+            {/* Predicted Trajectory (No Spin) - RED */}
+            {predictedNorm.length > 1 && (
               <Polyline
-                points={polylinePoints}
+                points={predictedPolyline}
                 fill="none"
-                stroke="url(#grad)"
+                stroke="url(#predGrad)"
                 strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="4 4"
+              />
+            )}
+
+            {/* Actual Trajectory - GREEN/BLUE */}
+            {actualNorm.length > 1 && (
+              <Polyline
+                points={actualPolyline}
+                fill="none"
+                stroke="url(#actualGrad)"
+                strokeWidth="3.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             )}
 
-            {/* Start and end dots */}
-            {normalizedPoints.length > 0 && (
-              <>
-                <Circle cx={normalizedPoints[0][0]} cy={normalizedPoints[0][1]}
-                  r="6" fill={COLORS.success} opacity="0.9" />
-                <Circle
-                  cx={normalizedPoints[normalizedPoints.length - 1][0]}
-                  cy={normalizedPoints[normalizedPoints.length - 1][1]}
-                  r="6" fill={COLORS.primary} opacity="0.9" />
-              </>
+            {/* Bounce Point Highlight */}
+            {result?.bounce_frame && actualNorm.length > 0 && (
+              <Circle 
+                cx={actualNorm[result.bounce_frame] ? actualNorm[result.bounce_frame][0] : actualNorm[Math.floor(actualNorm.length/2)][0]} 
+                cy={actualNorm[result.bounce_frame] ? actualNorm[result.bounce_frame][1] : actualNorm[Math.floor(actualNorm.length/2)][1]} 
+                r="5" fill="#facc15" 
+              />
             )}
-
-            {/* Intermediate dots */}
-            {normalizedPoints.slice(1, -1).map((p, i) => (
-              <Circle key={i} cx={p[0]} cy={p[1]} r="3" fill="#fff" opacity="0.3" />
-            ))}
 
             {/* Labels */}
             <SvgText x="16" y={SVG_HEIGHT - 14} fill={COLORS.textMuted} fontSize="9">Release</SvgText>
             <SvgText x={SVG_WIDTH - 54} y={SVG_HEIGHT - 14} fill={COLORS.textMuted} fontSize="9">Impact</SvgText>
+            
           </Svg>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+              <View style={{ width: 10, height: 4, backgroundColor: COLORS.success, marginRight: 6 }} />
+              <Text style={{ fontSize: 10, color: COLORS.textMuted }}>Actual</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+              <View style={{ width: 10, height: 4, backgroundColor: COLORS.error, marginRight: 6 }} />
+              <Text style={{ fontSize: 10, color: COLORS.textMuted }}>Predicted</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Frame Detections */}
+        {/* Frame Detections Summary */}
         <View style={styles.detectionsCard}>
-          <Text style={styles.sectionTitle}>FRAME DETECTIONS</Text>
-          {(result?.detections || []).slice(0, 10).map((det, idx) => (
-            <View key={idx} style={[styles.detRow, idx === (result?.detections?.length > 10 ? 9 : result?.detections?.length - 1) && { borderBottomWidth: 0 }]}>
-              <View style={styles.frameBadge}>
-                <Text style={styles.frameText}>Frame {det.frame}</Text>
-              </View>
-              <Text style={styles.coordText}>x: {det.x}  ·  y: {det.y}</Text>
-              <View style={styles.confBar}>
-                <View style={[styles.confFill, { width: `${Math.round((det.confidence || 0.9) * 100)}%` }]} />
-              </View>
-            </View>
-          ))}
-          {(result?.detections?.length || 0) > 10 && (
-            <Text style={styles.moreText}>+{result.detections.length - 10} more frames</Text>
-          )}
+          <Text style={styles.sectionTitle}>ANALYSIS DETAILS</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+             <Text style={{ color: COLORS.textSecondary }}>Frames Tracked:</Text>
+             <Text style={{ color: COLORS.textPrimary }}>{result?.frames_detected} / {result?.total_frames}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+             <Text style={{ color: COLORS.textSecondary }}>Video FPS:</Text>
+             <Text style={{ color: COLORS.textPrimary }}>{result?.fps || 30}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+             <Text style={{ color: COLORS.textSecondary }}>Processing Time:</Text>
+             <Text style={{ color: COLORS.textPrimary }}>{result?.processing_time}s</Text>
+          </View>
         </View>
 
         {/* Analyze Another */}

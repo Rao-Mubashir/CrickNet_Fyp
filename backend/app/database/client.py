@@ -113,13 +113,23 @@ class DatabaseClient:
     ) -> AnalysisDB:
         """Save analysis result to database"""
         try:
-            response = self.client.table("analyses").insert({
+            insert_data = {
                 "user_id": str(analysis_data.user_id),
                 "speed": analysis_data.speed,
                 "trajectory": analysis_data.trajectory,
+                "predicted_trajectory": analysis_data.predicted_trajectory,
                 "detections": analysis_data.detections,
                 "processing_time": analysis_data.processing_time,
-            }).execute()
+                "bounce_frame": analysis_data.bounce_frame,
+                "spin_angle": analysis_data.spin_angle,
+                "spin_direction": analysis_data.spin_direction,
+                "total_frames": analysis_data.total_frames,
+                "frames_detected": analysis_data.frames_detected,
+                "fps": analysis_data.fps,
+            }
+            # Remove None values so Supabase uses column defaults
+            insert_data = {k: v for k, v in insert_data.items() if v is not None}
+            response = self.client.table("analyses").insert(insert_data).execute()
 
             if response.data and len(response.data) > 0:
                 analysis = response.data[0]

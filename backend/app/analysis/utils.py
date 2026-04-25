@@ -1,266 +1,102 @@
-import math
 import os
+import subprocess
 import cv2
-import numpy as np
-import pandas as pd
-from typing import Optional, Tuple, List, Dict
-from ultralytics import YOLO
-from app.config import MODEL_PATH
 
-def load_yolo_model() -> YOLO:
-    """Load YOLOv8 model from file"""
-    try:
-        model = YOLO(MODEL_PATH)
-        return model
-    except Exception as e:
-        raise RuntimeError(f"Failed to load model: {str(e)}")
+def parse_coords(filename):
+    coords = []
+    if not os.path.exists(filename):
+        return coords
+    with open(filename, "r") as f:
+        for line in f:
+            parts = line.strip().split(",")
+            if len(parts) == 3:
+                frame, x, y = int(parts[0]), float(parts[1]), float(parts[2])
+                coords.append((frame, x, y))
+    return coords
 
-def calculate_speed(
-    prev_pos: Optional[Tuple[float, float]],
-    curr_pos: Tuple[float, float],
-    fps: float = 30,
-    frame_width: int = 1920,
-    frame_height: int = 1080,
-    frame_gap: int = 1,
-) -> float:
-    """Calculate ball speed from position change.
-
-    Uses a calibrated meters-per-pixel estimate based on the assumption that a
-    typical cricket bowling video frames roughly 18 metres of pitch across ~60%
-    of the horizontal field of view.  This gives a reasonable real-world scale
-    without requiring manual calibration or camera intrinsics.
-
-    Args:
-        prev_pos:      (x, y) position in the previous detection.
-        curr_pos:      (x, y) position in the current detection.
-        fps:           Frames per second of the source video.
-        frame_width:   Width of the video frame in pixels.
-        frame_height:  Height of the video frame in pixels.
-        frame_gap:     Number of frames between prev and curr detections.
-
-    Returns:
-        Estimated speed in km/h.
-    """
-    if not prev_pos or not curr_pos:
-        return 0.0
-
-    dx = curr_pos[0] - prev_pos[0]
-    dy = curr_pos[1] - prev_pos[1]
-    pixel_distance = math.sqrt(dx**2 + dy**2)
-
-    # --- Calibration ---
-    # Cricket pitch ≈ 20.12 m.  In a typical bowling-action video the ball's
-    # travel covers roughly 18 m of real-world distance and appears across
-    # about 60 % of the frame width.  We use the frame diagonal to make the
-    # estimate orientation-agnostic (works for landscape & portrait).
-    frame_diagonal = math.sqrt(frame_width**2 + frame_height**2)
-    assumed_real_world_span = 18.0        # metres visible across 60% of frame
-    meters_per_pixel = assumed_real_world_span / (frame_diagonal * 0.6)
-
-    # Distance in metres the ball moved between the two frames
-    real_distance_m = pixel_distance * meters_per_pixel
-
-    # Time between the two detections (accounts for skipped frames)
-    time_s = max(frame_gap, 1) / fps if fps > 0 else max(frame_gap, 1) / 30.0
-
-    # Convert m/s → km/h
-    speed_kmh = (real_distance_m / time_s) * 3.6
-
-    # Clamp to realistic cricket bowling range (0 – 200 km/h)
-    speed_kmh = min(max(speed_kmh, 100.0), 150.0)
-
-    return speed_kmh
-
-def _color_confidence(roi: np.ndarray) -> float:
-    """
-    Compute a soft color-confidence score for how "red" the ROI looks.
-    Returns a value from 0.0 to 1.0.  This is used as a BONUS to rank
-    candidates — it should NEVER be used as a hard gate since mobile
-    videos have heavy motion blur, compression, and white-balance shifts
-    that destroy color accuracy on small objects.
-    """
-    if roi.size == 0 or roi.shape[0] < 2 or roi.shape[1] < 2:
-        return 0.0
-
-    total_pixels = roi.shape[0] * roi.shape[1]
-
-    # --- HSV: very broad red ranges ---
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    # Low-hue reds (H 0-20, generous S & V to handle blur/shadow)
-    m1 = cv2.inRange(hsv, np.array([0,   30, 30]), np.array([20,  255, 255]))
-    # Wrap-around reds (H 160-180)
-    m2 = cv2.inRange(hsv, np.array([160, 30, 30]), np.array([180, 255, 255]))
-    hsv_mask = cv2.bitwise_or(m1, m2)
-
-    # Only apply morphological cleanup on ROIs large enough that it won't
-    # erase the entire mask (ball can be as small as 5-6 px in mobile video)
-    if min(roi.shape[0], roi.shape[1]) >= 8:
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        hsv_mask = cv2.morphologyEx(hsv_mask, cv2.MORPH_CLOSE, kernel)
-
-    hsv_ratio = cv2.countNonZero(hsv_mask) / total_pixels
-
-    # --- Simple BGR channel check (no color-space conversion needed) ---
-    # For a red ball: R channel should dominate over G and B on average
-    b_mean = np.mean(roi[:, :, 0])
-    g_mean = np.mean(roi[:, :, 1])
-    r_mean = np.mean(roi[:, :, 2])
-
-    # Red dominance bonus: how much R exceeds G and B
-    r_dominance = 0.0
-    if r_mean > g_mean and r_mean > b_mean and r_mean > 30:
-        r_dominance = min(1.0, (r_mean - max(g_mean, b_mean)) / 80.0)
-
-    # Combine: HSV mask ratio + raw channel dominance
-    confidence = (hsv_ratio * 0.6) + (r_dominance * 0.4)
-    return min(1.0, confidence)
-
-
-def extract_ball_coordinates(input_video: str, model: YOLO) -> Tuple[List[Dict], int, int, int, int]:
-    """
-    Pass 1: Analyze video and extract ball coordinates.
+def run_full_analysis(video_path: str, coords_file: str, no_spin_file: str) -> dict:
+    import sys
     
-    Strategy: TRUST the YOLO model (it's trained specifically for cricket balls).
-    Color analysis is only used as a soft ranking bonus when multiple detections
-    exist in the same frame — it is NOT a hard gate.
+    # 1. Run coord.py
+    print(f"Running coord.py on {video_path}...")
+    subprocess.run([sys.executable, "app/analysis/coord.py", video_path, coords_file], check=True)
+
+    # 2. Run predict.py
+    print("Running predict.py...")
+    subprocess.run([sys.executable, "app/analysis/predict.py", coords_file, no_spin_file], check=True)
+
+    # 3. Run estimate_speed.py and capture output
+    print("Running estimate_speed.py...")
+    result = subprocess.run([sys.executable, "app/analysis/estimate_speed.py", coords_file], capture_output=True, text=True)
     
-    Handles mobile video issues: motion blur, compression artifacts,
-    auto white-balance, small ball sizes.
+    speed_kmh = "N/A"
+    bounce_frame = None
+    for line in result.stdout.split('\n'):
+        if "Average speed:" in line and "km/h" in line:
+            speed_kmh = line.split("Average speed:")[1].strip()
+        if "Bounce frame:" in line:
+            bounce_frame = int(line.split("Bounce frame:")[1].strip())
+            
+    raw_coords = parse_coords(coords_file)
+    predicted_coords = parse_coords(no_spin_file)
     
-    Returns: (raw_data, fps, width, height, total_frames)
-    """
-    cap = cv2.VideoCapture(input_video)
+    detections = []
+    for frame, x, y in raw_coords:
+        detections.append({'frame': frame, 'x': x, 'y': y, 'confidence': 1.0})
+        
+    cap = cv2.VideoCapture(video_path)
     fps = int(cap.get(cv2.CAP_PROP_FPS) or 30)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    raw_data = []
-    frame_idx = 0
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        # Run YOLO — use the same conf threshold the model was validated with
-        results = model.predict(frame, conf=0.20, verbose=False)
-
-        best_candidate = None
-        best_score = -1.0
-
-        if len(results[0].boxes) > 0:
-            for box in results[0].boxes:
-                if int(box.cls[0]) == 0:
-                    x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-                    yolo_conf = float(box.conf[0])
-                    box_w = x2 - x1
-                    box_h = y2 - y1
-
-                    # Skip impossibly tiny detections (< 2px)
-                    if box_w < 2 or box_h < 2:
-                        continue
-
-                    center_x = (x1 + x2) / 2
-                    center_y = (y1 + y2) / 2
-
-                    # --- Soft color bonus (never blocks a detection) ---
-                    roi = frame[max(0, int(y1)):min(height, int(y2)),
-                                max(0, int(x1)):min(width, int(x2))]
-                    color_bonus = _color_confidence(roi)
-
-                    # Combined score: YOLO confidence is primary, color is a bonus
-                    score = yolo_conf + (color_bonus * 0.3)
-
-                    if score > best_score:
-                        best_score = score
-                        best_candidate = {
-                            'frame': frame_idx,
-                            'x': center_x,
-                            'y': center_y,
-                            'r': max((box_w + box_h) / 4, 2.0),  # Minimum 2px radius
-                        }
-
-        if best_candidate:
-            raw_data.append(best_candidate)
-
-        frame_idx += 1
-
     cap.release()
-    return raw_data, fps, width, height, total_frames
-
-def smooth_trajectory(raw_data: List[Dict], total_frames: int) -> pd.DataFrame:
-    """
-    Data Smoothing & Gap Filling:
-    Interpolates missing detections and smooths the trajectory path.
-    """
-    if not raw_data:
-        # Return an empty dataframe with expected columns if no ball detected
-        return pd.DataFrame(columns=['x', 'y', 'r'])
-
-    df = pd.DataFrame(raw_data).set_index('frame')
     
-    # Check if there are any valid records before reindexing
-    if len(df) == 0:
-        return pd.DataFrame(columns=['x', 'y', 'r'])
-
-    df = df.reindex(range(total_frames))
-
-    # 1. Interpolate to fill missing detections
-    df = df.interpolate(method='linear', limit_direction='both')
-
-    # 2. Smooth the path (Rolling average over 7 frames)
-    df['x'] = df['x'].rolling(window=7, center=True, min_periods=1).mean()
-    df['y'] = df['y'].rolling(window=7, center=True, min_periods=1).mean()
-    df['r'] = df['r'].rolling(window=7, center=True, min_periods=1).mean()
-
-    return df
-
-def draw_fluffy_trajectory(input_video: str, output_video: str, df: pd.DataFrame, fps: int, width: int, height: int):
-    """
-    Pass 2: Drawing continuous fluffy trajectory and saving the output video.
-    """
-    cap = cv2.VideoCapture(input_video)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_video, fourcc, fps, (width, height))
-
-    tail_length = fps  # 1 second tail
-    frame_idx = 0
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        start_idx = max(0, frame_idx - tail_length)
+    # Calculate spin direction manually since we need it for frontend
+    spin_direction = "No Spin"
+    spin_angle = None
+    if os.path.exists(coords_file) and os.path.exists(no_spin_file) and bounce_frame:
+        # Just simple calculation for UI, overlay.py handles the real calculation for video
+        import numpy as np
+        original_dict = {f: (x, y) for f, x, y in raw_coords}
+        predicted_dict = {f: (x, y) for f, x, y in predicted_coords}
         
-        if not df.empty:
-            recent_points = df.loc[start_idx:frame_idx].dropna().to_dict('records')
-            num_points = len(recent_points)
-
-            overlay = frame.copy()
-
-            if num_points > 1:
-                for i in range(num_points - 1):
-                    pt1 = recent_points[i]
-                    pt2 = recent_points[i + 1]
-
-                    x1, y1 = int(pt1['x']), int(pt1['y'])
-                    x2, y2 = int(pt2['x']), int(pt2['y'])
-
-                    base_radius = pt1['r']
-                    thickness = int(base_radius * 1.1)
-
-                    if thickness > 0:
-                        color = (0, 10, 255)  # Orange BGR
-                        cv2.line(overlay, (x1, y1), (x2, y2), color, thickness, lineType=cv2.LINE_AA)
-                        cv2.circle(overlay, (x2, y2), int(thickness / 2), color, -1, lineType=cv2.LINE_AA)
-
-            alpha = 0.8
-            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
-
-        out.write(frame)
-        frame_idx += 1
-
-    cap.release()
-    out.release()
+        try:
+            end_actual = original_dict[max(original_dict.keys())]
+            end_pred = predicted_dict[max(predicted_dict.keys())]
+            bounce_pos = original_dict[bounce_frame]
+            
+            v_actual = np.array([end_actual[0] - bounce_pos[0], end_actual[1] - bounce_pos[1]])
+            v_pred = np.array([end_pred[0] - bounce_pos[0], end_pred[1] - bounce_pos[1]])
+            
+            norm_actual = np.linalg.norm(v_actual)
+            norm_pred = np.linalg.norm(v_pred)
+            
+            if norm_actual > 0 and norm_pred > 0:
+                cos_theta = np.dot(v_actual, v_pred) / (norm_actual * norm_pred)
+                angle_rad = np.arccos(np.clip(cos_theta, -1.0, 1.0))
+                spin_angle = round(np.degrees(angle_rad), 2)
+                
+                cross = v_pred[0] * v_actual[1] - v_pred[1] * v_actual[0]
+                if abs(spin_angle) < 1.0:
+                    spin_direction = "No Spin"
+                elif cross > 0:
+                    spin_direction = "Turns Right"
+                else:
+                    spin_direction = "Turns Left"
+        except Exception:
+            pass
+            
+    return {
+        "trajectory": [[x, y] for _, x, y in raw_coords],
+        "predicted_trajectory": [[x, y] for _, x, y in predicted_coords],
+        "detections": detections,
+        "speed": speed_kmh,
+        "bounce_frame": bounce_frame,
+        "spin_angle": spin_angle,
+        "spin_direction": spin_direction,
+        "total_frames": total_frames,
+        "frames_detected": len(raw_coords),
+        "fps": fps,
+        "video_width": width,
+        "video_height": height,
+    }
