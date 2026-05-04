@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Dimensions,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Polygon } from 'react-native-svg';
@@ -98,6 +99,7 @@ const CameraScreen = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <StatusBar style="light" backgroundColor="#000000" />
       <CameraView
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
@@ -129,7 +131,7 @@ const CameraScreen = ({ navigation }) => {
             <Polygon
               points={`${SCREEN_WIDTH * 0.3},${SCREEN_HEIGHT * 0.35} ${SCREEN_WIDTH * 0.7},${SCREEN_HEIGHT * 0.35} ${SCREEN_WIDTH},${SCREEN_HEIGHT} 0,${SCREEN_HEIGHT}`}
               fill="transparent"
-              stroke="rgba(255, 235, 59, 0.8)" // Bright yellow overlay
+              stroke={COLORS.secondary}
               strokeWidth="2.5"
               strokeDasharray="8, 6"
             />
@@ -163,7 +165,7 @@ const CameraScreen = ({ navigation }) => {
               {isRecording && (
                 <>
                   <MaterialIcons name="timer" size={22} color="#fff" />
-                  <Text style={[styles.sideBtnLabel, { color: COLORS.error }]}>
+                  <Text style={[styles.sideBtnLabel, { color: COLORS.accent }]}>
                     {formatDuration(recordDuration)}
                   </Text>
                 </>
@@ -184,16 +186,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center', padding: SPACING.xl,
   },
   permEmoji: { fontSize: 56, marginBottom: SPACING.xl },
-  permTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.title, ...FONTS.semibold, marginBottom: SPACING.md, textAlign: 'center' },
+  permTitle: { color: COLORS.primary, fontSize: TYPOGRAPHY.title, ...FONTS.semibold, marginBottom: SPACING.md, textAlign: 'center' },
   permSub: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.body, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.xl },
   permBtn: {
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.accent, borderRadius: RADIUS.md,
     paddingVertical: 14, paddingHorizontal: 32,
   },
   permBtnText: { color: '#fff', fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
   overlay: { flex: 1, justifyContent: 'space-between' },
   backBtn: {
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: RADIUS.full,
     width: 38, height: 38, alignItems: 'center', justifyContent: 'center',
     margin: SPACING.lg,
   },
@@ -202,30 +204,30 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 56, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.error },
+  recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.accent },
   recText: { color: '#fff', fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
   pitchGuideContainer: {
     alignSelf: 'center', 
     alignItems: 'center',
     justifyContent: 'center',
   },
-  frameHint: { color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center', ...FONTS.semibold },
+  frameHint: { color: 'rgba(255,255,255,0.82)', fontSize: 12, textAlign: 'center', ...FONTS.semibold },
   controls: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
     paddingHorizontal: SPACING.xl, paddingBottom: 0,
   },
   sideBtn: { alignItems: 'center', gap: 4, width: 60 },
   sideBtnEmoji: { fontSize: 22 },
-  sideBtnLabel: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.small },
+  sideBtnLabel: { color: '#fff', fontSize: TYPOGRAPHY.small },
   recordBtn: {
     width: 72, height: 72, borderRadius: 36,
     borderWidth: 3, borderColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
   },
-  recordBtnActive: { borderColor: COLORS.error },
-  recordInner: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.error },
+  recordBtnActive: { borderColor: COLORS.accent },
+  recordInner: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.accent },
   recordInnerActive: { width: 30, height: 30, borderRadius: 6 },
-  hintText: { color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', paddingBottom: SPACING.sm },
+  hintText: { color: 'rgba(255,255,255,0.7)', fontSize: 11, textAlign: 'center', paddingBottom: SPACING.sm },
 });
 
 export default CameraScreen;

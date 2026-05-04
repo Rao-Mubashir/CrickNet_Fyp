@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, Alert,
   ActivityIndicator, ScrollView,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -64,6 +65,7 @@ const UploadScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" backgroundColor={COLORS.bgPrimary} />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
@@ -76,13 +78,13 @@ const UploadScreen = ({ navigation }) => {
         {/* Upload zone */}
         {!selectedVideo ? (
           <TouchableOpacity style={styles.uploadZone} onPress={pickVideo} activeOpacity={0.8}>
-            <MaterialIcons name="movie-creation" size={44} color={COLORS.primary} style={{ marginBottom: SPACING.md }} />
+            <MaterialIcons name="movie-creation" size={44} color={COLORS.secondary} style={{ marginBottom: SPACING.md }} />
             <Text style={styles.uploadTitle}>Tap to Select Video</Text>
             <Text style={styles.uploadSub}>MP4, MOV supported · Max 500 MB</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.selectedCard}>
-            <MaterialIcons name="videocam" size={28} color={COLORS.success} />
+            <MaterialIcons name="videocam" size={28} color={COLORS.secondary} />
             <View style={styles.fileInfo}>
               <Text style={styles.fileName} numberOfLines={1}>
                 {getFileName(selectedVideo.uri)}
@@ -111,7 +113,7 @@ const UploadScreen = ({ navigation }) => {
           onPress={handleAnalyze}
           disabled={!selectedVideo}
         >
-          <Text style={styles.analyzeBtnText}>
+          <Text style={[styles.analyzeBtnText, !selectedVideo && styles.analyzeBtnTextDisabled]}>
             {selectedVideo ? 'Analyze Video →' : 'Select a video to continue'}
           </Text>
         </TouchableOpacity>
@@ -151,28 +153,29 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
-    backgroundColor: COLORS.bgSecondary, borderBottomWidth: 1, borderBottomColor: COLORS.bgBorder,
+    backgroundColor: COLORS.primary, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backBtn: {
-    backgroundColor: COLORS.bgInput, borderWidth: 0.5, borderColor: COLORS.bgBorder,
+    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.16)',
     borderRadius: RADIUS.sm, width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
   },
-  backText: { color: COLORS.textPrimary, fontSize: 20 },
-  headerTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold },
+  backText: { color: '#fff', fontSize: 20 },
+  headerTitle: { color: '#fff', fontSize: TYPOGRAPHY.section, ...FONTS.semibold },
   scroll: { padding: SPACING.md },
   uploadZone: {
-    borderWidth: 2, borderColor: COLORS.primary, borderStyle: 'dashed',
+    borderWidth: 2, borderColor: COLORS.secondary, borderStyle: 'dashed',
     borderRadius: RADIUS.md, paddingVertical: 50, alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.05)', marginBottom: SPACING.lg,
+    backgroundColor: COLORS.surfaceTint, marginBottom: SPACING.lg,
   },
   uploadEmoji: { fontSize: 44, marginBottom: SPACING.md },
-  uploadTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.body, ...FONTS.semibold, marginBottom: 6 },
+  uploadTitle: { color: COLORS.primary, fontSize: TYPOGRAPHY.body, ...FONTS.semibold, marginBottom: 6 },
   uploadSub: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.small },
   selectedCard: {
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: COLORS.success,
+    borderWidth: 1, borderColor: COLORS.secondary,
     padding: SPACING.md, flexDirection: 'row', alignItems: 'center',
     gap: SPACING.md, marginBottom: SPACING.md,
+    shadowColor: '#0B1F33', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   fileEmoji: { fontSize: 28 },
   fileInfo: { flex: 1 },
@@ -186,24 +189,29 @@ const styles = StyleSheet.create({
   changeBtn: {
     borderWidth: 1, borderColor: COLORS.bgBorder, borderRadius: RADIUS.md,
     paddingVertical: 10, alignItems: 'center', marginBottom: SPACING.md,
+    backgroundColor: COLORS.bgSecondary,
   },
-  changeBtnText: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.body },
+  changeBtnText: { color: COLORS.secondary, fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
   analyzeBtn: {
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.accent, borderRadius: RADIUS.md,
     paddingVertical: 15, alignItems: 'center', marginBottom: SPACING.xl,
+    borderWidth: 1, borderColor: COLORS.accent,
   },
-  analyzeBtnDisabled: { backgroundColor: COLORS.bgHighlight },
+  analyzeBtnDisabled: { backgroundColor: COLORS.bgSecondary, borderColor: COLORS.primary },
   analyzeBtnText: { color: '#fff', fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
+  analyzeBtnTextDisabled: { color: COLORS.primary, ...FONTS.semibold },
   infoCard: {
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md,
     borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md, marginBottom: SPACING.md,
+    shadowColor: '#0B1F33', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   tipsCard: {
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md,
     borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md,
+    shadowColor: '#0B1F33', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   infoTitle: {
-    color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, ...FONTS.semibold,
+    color: COLORS.primary, fontSize: TYPOGRAPHY.small, ...FONTS.semibold,
     letterSpacing: 0.8, marginBottom: SPACING.md, textTransform: 'uppercase',
   },
   infoItem: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.body, lineHeight: 26 },

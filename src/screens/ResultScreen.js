@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Dimensions, Image,
+  ActivityIndicator, Alert, Dimensions, Image, Animated, Easing,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
 import Svg, { Polyline, Circle, Text as SvgText, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -17,6 +18,7 @@ const SVG_HEIGHT = 150;
 const ResultScreen = ({ route, navigation }) => {
   const { videoUri, source } = route.params || {};
   const videoRef = useRef(null);
+  const logoScale = useRef(new Animated.Value(1)).current;
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStage, setLoadingStage] = useState('Uploading video...');
@@ -33,6 +35,30 @@ const ResultScreen = ({ route, navigation }) => {
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isLoading) return undefined;
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(logoScale, {
+          toValue: 1.08,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoScale, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [isLoading, logoScale]);
 
   const runAnalysis = async () => {
     setIsLoading(true);
@@ -108,10 +134,14 @@ const ResultScreen = ({ route, navigation }) => {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" backgroundColor={COLORS.bgPrimary} />
         <View style={styles.loadingContainer}>
           <View style={styles.loadingCard}>
-            <Image source={require('../assets/logo.png')} style={{ width: 48, height: 48, marginBottom: SPACING.xl, borderRadius: RADIUS.md }} />
-            <ActivityIndicator color={COLORS.primary} size="large" style={{ marginBottom: SPACING.lg }} />
+            <Animated.Image
+              source={require('../assets/logo.png')}
+              style={{ width: 48, height: 48, marginBottom: SPACING.xl, borderRadius: RADIUS.md, transform: [{ scale: logoScale }] }}
+            />
+            <ActivityIndicator color={COLORS.secondary} size="large" style={{ marginBottom: SPACING.lg }} />
             <Text style={styles.loadingTitle}>{loadingStage}</Text>
             <Text style={styles.loadingSub}>AI is analyzing your delivery...</Text>
             {uploadProgress > 0 && uploadProgress < 100 && (
@@ -132,11 +162,11 @@ const ResultScreen = ({ route, navigation }) => {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" backgroundColor={COLORS.bgPrimary} />
         <View style={styles.loadingContainer}>
           <View style={styles.loadingCard}>
             <MaterialIcons name="error-outline" size={48} color={COLORS.error} style={{ marginBottom: SPACING.lg }} />
-            <Text style={styles.loadingTitle}>Analysis Failed</Text>
-            <Text style={[styles.loadingSub, { textAlign: 'center', marginBottom: SPACING.xl }]}>{error}</Text>
+            <Text style={styles.loadingTitle}>Analysis Failed</Text> 
             <TouchableOpacity style={styles.retryBtn} onPress={runAnalysis}>
               <Text style={styles.retryText}>Retry Analysis</Text>
             </TouchableOpacity>
@@ -154,6 +184,7 @@ const ResultScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" backgroundColor={COLORS.bgPrimary} />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
@@ -187,12 +218,12 @@ const ResultScreen = ({ route, navigation }) => {
 
         {/* Speed & Spin Metrics Row */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { borderColor: COLORS.primary }]}>
-            <Text style={[styles.statVal, { color: COLORS.primary }]}>{result?.speed || '—'}</Text>
+          <View style={[styles.statCard, { borderColor: COLORS.secondary }]}> 
+            <Text style={[styles.statVal, { color: COLORS.secondary }]}>{result?.speed || '—'}</Text>
             <Text style={styles.statLabel}>Avg Speed</Text>
           </View>
-          <View style={[styles.statCard, { borderColor: COLORS.error }]}>
-            <Text style={[styles.statVal, { color: COLORS.error }]}>
+          <View style={[styles.statCard, { borderColor: COLORS.accent }]}> 
+            <Text style={[styles.statVal, { color: COLORS.accent }]}> 
               {result?.spin_angle ? `${result.spin_angle}°` : '—'}
             </Text>
             <Text style={styles.statLabel}>Spin Angle</Text>
@@ -207,9 +238,9 @@ const ResultScreen = ({ route, navigation }) => {
               <MaterialIcons 
                 name={result.spin_direction === 'Turns Right' ? 'turn-right' : result.spin_direction === 'Turns Left' ? 'turn-left' : 'straight'} 
                 size={28} 
-                color={COLORS.textPrimary} 
+                color={COLORS.primary} 
               />
-              <Text style={{ color: COLORS.textPrimary, fontSize: 20, marginLeft: 12, ...FONTS.bold }}>
+              <Text style={{ color: COLORS.primary, fontSize: 20, marginLeft: 12, ...FONTS.semibold }}>
                 {result.spin_direction}
               </Text>
             </View>
@@ -222,12 +253,12 @@ const ResultScreen = ({ route, navigation }) => {
           <Svg width={SVG_WIDTH} height={SVG_HEIGHT} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}>
             <Defs>
               <LinearGradient id="actualGrad" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor={COLORS.success} stopOpacity="1" />
-                <Stop offset="1" stopColor="#0ea5e9" stopOpacity="1" />
+                <Stop offset="0" stopColor={COLORS.secondary} stopOpacity="1" />
+                <Stop offset="1" stopColor={COLORS.primary} stopOpacity="1" />
               </LinearGradient>
               <LinearGradient id="predGrad" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor={COLORS.error} stopOpacity="0.8" />
-                <Stop offset="1" stopColor={COLORS.error} stopOpacity="0.4" />
+                <Stop offset="0" stopColor={COLORS.accent} stopOpacity="0.85" />
+                <Stop offset="1" stopColor={COLORS.primaryDark} stopOpacity="0.35" />
               </LinearGradient>
             </Defs>
 
@@ -235,7 +266,7 @@ const ResultScreen = ({ route, navigation }) => {
             <Line x1="0" y1={SVG_HEIGHT - 10} x2={SVG_WIDTH} y2={SVG_HEIGHT - 10} stroke={COLORS.bgBorder} strokeWidth="0.5" />
             <Line x1="10" y1="0" x2="10" y2={SVG_HEIGHT} stroke={COLORS.bgBorder} strokeWidth="0.5" />
 
-            {/* Predicted Trajectory (No Spin) - RED */}
+            {/* Predicted Trajectory (No Spin) */}
             {predictedNorm.length > 1 && (
               <Polyline
                 points={predictedPolyline}
@@ -248,7 +279,7 @@ const ResultScreen = ({ route, navigation }) => {
               />
             )}
 
-            {/* Actual Trajectory - GREEN/BLUE */}
+            {/* Actual Trajectory */}
             {actualNorm.length > 1 && (
               <Polyline
                 points={actualPolyline}
@@ -265,7 +296,7 @@ const ResultScreen = ({ route, navigation }) => {
               <Circle 
                 cx={actualNorm[result.bounce_frame] ? actualNorm[result.bounce_frame][0] : actualNorm[Math.floor(actualNorm.length/2)][0]} 
                 cy={actualNorm[result.bounce_frame] ? actualNorm[result.bounce_frame][1] : actualNorm[Math.floor(actualNorm.length/2)][1]} 
-                r="5" fill="#facc15" 
+                r="5" fill={COLORS.primary} 
               />
             )}
 
@@ -276,11 +307,11 @@ const ResultScreen = ({ route, navigation }) => {
           </Svg>
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-              <View style={{ width: 10, height: 4, backgroundColor: COLORS.success, marginRight: 6 }} />
+              <View style={{ width: 10, height: 4, backgroundColor: COLORS.secondary, marginRight: 6 }} />
               <Text style={{ fontSize: 10, color: COLORS.textMuted }}>Actual</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-              <View style={{ width: 10, height: 4, backgroundColor: COLORS.error, marginRight: 6 }} />
+              <View style={{ width: 10, height: 4, backgroundColor: COLORS.accent, marginRight: 6 }} />
               <Text style={{ fontSize: 10, color: COLORS.textMuted }}>Predicted</Text>
             </View>
           </View>
@@ -289,7 +320,7 @@ const ResultScreen = ({ route, navigation }) => {
         {/* Frame Detections Summary */}
         <View style={styles.detectionsCard}>
           <Text style={styles.sectionTitle}>ANALYSIS DETAILS</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
              <Text style={{ color: COLORS.textSecondary }}>Frames Tracked:</Text>
              <Text style={{ color: COLORS.textPrimary }}>{result?.frames_detected} / {result?.total_frames}</Text>
           </View>
@@ -317,35 +348,37 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
-    backgroundColor: COLORS.bgSecondary, borderBottomWidth: 1, borderBottomColor: COLORS.bgBorder,
+    backgroundColor: COLORS.primary, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backBtn: {
-    backgroundColor: COLORS.bgInput, borderWidth: 0.5, borderColor: COLORS.bgBorder,
+    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.16)',
     borderRadius: RADIUS.sm, width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
   },
-  backText: { color: COLORS.textPrimary, fontSize: 20 },
-  headerTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold },
-  statusBadge: { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderRadius: RADIUS.sm, paddingHorizontal: 10, paddingVertical: 4 },
-  statusText: { color: COLORS.success, fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
+  backText: { color: '#fff', fontSize: 20 },
+  headerTitle: { color: '#fff', fontSize: TYPOGRAPHY.section, ...FONTS.semibold },
+  statusBadge: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: RADIUS.sm, paddingHorizontal: 10, paddingVertical: 4 },
+  statusText: { color: '#fff', fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
   scroll: { padding: SPACING.sm },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl },
   loadingCard: {
     backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.lg,
     borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.lg,
     alignItems: 'center', width: '100%',
+    shadowColor: '#0B1F33', shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 3,
   },
   loadingEmoji: { fontSize: 48, marginBottom: SPACING.xl },
-  loadingTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold, marginBottom: 6 },
+  loadingTitle: { color: COLORS.primary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold, marginBottom: 6 },
   loadingSub: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.body },
   progressContainer: { marginTop: SPACING.lg, width: '100%', alignItems: 'center' },
   progressTrack: { width: '100%', height: 4, backgroundColor: COLORS.bgBorder, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 2 },
+  progressFill: { height: '100%', backgroundColor: COLORS.secondary, borderRadius: 2 },
   progressText: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, marginTop: 6 },
-  retryBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 12, paddingHorizontal: 32 },
+  retryBtn: { backgroundColor: COLORS.accent, borderRadius: RADIUS.md, paddingVertical: 12, paddingHorizontal: 32 },
   retryText: { color: '#fff', fontSize: TYPOGRAPHY.body, ...FONTS.semibold, textAlign: 'center' },
   videoCard: {
     borderRadius: RADIUS.md, overflow: 'hidden',
     borderWidth: 1, borderColor: COLORS.bgBorder, marginBottom: SPACING.md,
+    shadowColor: '#0B1F33', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   video: { width: '100%', height: 200 },
   videoPlaceholder: { backgroundColor: COLORS.bgSecondary, justifyContent: 'center', alignItems: 'center' },
@@ -353,20 +386,23 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1, backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.md,
     borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md, alignItems: 'center',
+    shadowColor: '#0B1F33', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   statVal: { fontSize: TYPOGRAPHY.title, ...FONTS.semibold },
   statLabel: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, marginTop: 4 },
   trajectoryCard: {
     backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.md,
     borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md, marginBottom: SPACING.md,
+    shadowColor: '#0B1F33', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   sectionTitle: {
-    color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, ...FONTS.semibold,
+    color: COLORS.primary, fontSize: TYPOGRAPHY.small, ...FONTS.semibold,
     letterSpacing: 0.8, marginBottom: SPACING.md, textTransform: 'uppercase',
   },
   detectionsCard: {
     backgroundColor: COLORS.bgSecondary, borderRadius: RADIUS.md,
     borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md, marginBottom: SPACING.lg,
+    shadowColor: '#0B1F33', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   detRow: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
@@ -376,16 +412,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bgHighlight, borderRadius: 4,
     paddingHorizontal: 8, paddingVertical: 4, minWidth: 64, alignItems: 'center',
   },
-  frameText: { color: COLORS.primary, fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
+  frameText: { color: COLORS.secondary, fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
   coordText: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.small, flex: 1 },
   confBar: { width: 52, height: 4, backgroundColor: COLORS.bgBorder, borderRadius: 2, overflow: 'hidden' },
   confFill: { height: '100%', backgroundColor: COLORS.success, borderRadius: 2 },
   moreText: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, textAlign: 'center', marginTop: SPACING.sm },
   newAnalysisBtn: {
-    borderWidth: 1, borderColor: COLORS.primary, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.secondary, borderRadius: RADIUS.md,
     paddingVertical: 14, alignItems: 'center', marginBottom: SPACING.xl,
   },
-  newAnalysisText: { color: COLORS.primary, fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
+  newAnalysisText: { color: COLORS.secondary, fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
 });
 
 export default ResultScreen;

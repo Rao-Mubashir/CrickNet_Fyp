@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../utils/AuthContext';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -99,6 +100,7 @@ const RegisterScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" backgroundColor={COLORS.bgPrimary} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -214,13 +216,14 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.primaryDark,
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+    shadowColor: '#0B1F33', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   logoTitle: {
-    color: COLORS.textPrimary,
+    color: COLORS.primary,
     fontSize: TYPOGRAPHY.title,
     ...FONTS.semibold,
   },
@@ -230,10 +233,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.bgBorder,
     padding: SPACING.lg,
+    shadowColor: '#0B1F33', shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 3,
   },
   formGroup: { marginBottom: SPACING.md },
   label: {
-    color: COLORS.textMuted,
+    color: COLORS.primary,
     fontSize: TYPOGRAPHY.small,
     ...FONTS.semibold,
     letterSpacing: 0.8,
@@ -256,7 +260,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   btnPrimary: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.accent,
     borderRadius: RADIUS.md,
     paddingVertical: 14,
     alignItems: 'center',
@@ -268,7 +272,7 @@ const styles = StyleSheet.create({
     ...FONTS.semibold,
   },
   linkText: {
-    color: COLORS.primary,
+    color: COLORS.secondary,
     fontSize: TYPOGRAPHY.body,
     textAlign: 'center',
     marginTop: SPACING.lg,

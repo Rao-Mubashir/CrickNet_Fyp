@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export const BASE_URL = 'http://172.26.4.159:8000';
+export const BASE_URL = 'http://13.62.90.153';
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 120000, // 2 min timeout for large videos

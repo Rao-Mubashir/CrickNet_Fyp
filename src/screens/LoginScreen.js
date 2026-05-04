@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../utils/AuthContext';
 import { COLORS, RADIUS, SPACING, FONTS, TYPOGRAPHY } from '../utils/theme';
@@ -36,6 +37,7 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" backgroundColor={COLORS.bgPrimary} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Logo */}
@@ -101,19 +103,21 @@ const styles = StyleSheet.create({
   logoArea: { alignItems: 'center', marginBottom: SPACING.xl, marginTop: SPACING.xl },
   logoIcon: {
     width: 72, height: 72, borderRadius: RADIUS.lg,
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.bgSecondary,
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    shadowColor: '#0B1F33', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   logoEmoji: { fontSize: 34 },
-  logoTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.title, ...FONTS.semibold, letterSpacing: 0.3 },
-  logoSub: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.body, marginTop: 4 },
+  logoTitle: { color: COLORS.primary, fontSize: TYPOGRAPHY.title, ...FONTS.semibold, letterSpacing: 0.3 },
+  logoSub: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.body, marginTop: 4 },
   card: {
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg,
     borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.lg,
+    shadowColor: '#0B1F33', shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 3,
   },
-  cardTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold, marginBottom: SPACING.lg },
+  cardTitle: { color: COLORS.primary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold, marginBottom: SPACING.lg },
   formGroup: { marginBottom: SPACING.md },
-  label: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, ...FONTS.semibold, letterSpacing: 0.8, marginBottom: 6 },
+  label: { color: COLORS.primary, fontSize: TYPOGRAPHY.small, ...FONTS.semibold, letterSpacing: 0.8, marginBottom: 6 },
   input: {
     backgroundColor: COLORS.bgInput, borderWidth: 1, borderColor: COLORS.bgBorder,
     borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 12,
@@ -122,11 +126,11 @@ const styles = StyleSheet.create({
   inputError: { borderColor: COLORS.error },
   errorText: { color: COLORS.error, fontSize: TYPOGRAPHY.small, marginTop: 4 },
   btnPrimary: {
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.accent, borderRadius: RADIUS.md,
     paddingVertical: 14, alignItems: 'center', marginTop: SPACING.sm,
   },
   btnText: { color: '#fff', fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
-  linkText: { color: COLORS.primary, fontSize: TYPOGRAPHY.body, textAlign: 'center', marginTop: SPACING.lg },
+  linkText: { color: COLORS.secondary, fontSize: TYPOGRAPHY.body, textAlign: 'center', marginTop: SPACING.lg },
 });
 
 export default LoginScreen;

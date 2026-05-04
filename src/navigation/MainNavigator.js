@@ -14,8 +14,8 @@ const Tab = createBottomTabNavigator();
 
 const TabIcon = ({ iconName, label, focused }) => (
   <View style={{ alignItems: 'center', paddingTop: 4 }}>
-    <MaterialIcons name={iconName} size={22} color={focused ? COLORS.primary : COLORS.textMuted} />
-    <Text style={{ fontSize: 10, color: focused ? COLORS.primary : COLORS.textMuted, marginTop: 2 }}>
+    <MaterialIcons name={iconName} size={22} color={focused ? COLORS.secondary : COLORS.textMuted} />
+    <Text style={{ fontSize: 10, color: focused ? COLORS.secondary : COLORS.textMuted, marginTop: 2 }}>
       {label}
     </Text>
   </View>
@@ -27,11 +27,12 @@ const TabNavigator = () => (
       headerShown: false,
       tabBarShowLabel: false,
       tabBarStyle: {
-        backgroundColor: COLORS.bgSecondary,
+        backgroundColor: 'rgba(255,255,255,0.98)',
         borderTopColor: COLORS.bgBorder,
         borderTopWidth: 0.5,
-        height: 62,
-        paddingBottom: 8,
+        height: 66,
+        paddingBottom: 10,
+        paddingTop: 6,
       },
     }}
   >

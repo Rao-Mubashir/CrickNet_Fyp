@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Image, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from '../utils/AuthContext';
 import AuthNavigator from './AuthNavigator';
@@ -12,7 +12,14 @@ const NavigationContent = () => {
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.bgPrimary }}>
-        <ActivityIndicator size="large" color={COLORS.blue} />
+        <Image
+          source={require('../assets/splash.png')}
+          resizeMode="contain"
+          style={{ width: '100%', height: '100%' }}
+        />
+        <View style={{ position: 'absolute', bottom: 64 }}>
+          <ActivityIndicator size="large" color={COLORS.secondary} />
+        </View>
       </View>
     );
   }

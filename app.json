@@ -5,15 +5,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/logo.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./src/assets/splash.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#000000"
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourname.crickvision",
+      "bundleIdentifier": "com.usman.crickvision",
       "infoPlist": {
         "NSCameraUsageDescription": "CrickVision needs camera access to record cricket deliveries for AI analysis.",
         "NSMicrophoneUsageDescription": "CrickVision needs microphone access when recording video.",
@@ -23,9 +23,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/logo.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#FFFFFF"
       },
-      "package": "com.yourname.crickvision",
+      "package": "com.usman.crickvision",
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",

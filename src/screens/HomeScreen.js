@@ -44,8 +44,8 @@ const HomeScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('Camera')}
           activeOpacity={0.8}
         >
-          <View style={[styles.cardIcon, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-            <MaterialIcons name="videocam" size={24} color={COLORS.blue} />
+          <View style={[styles.cardIcon, { backgroundColor: COLORS.secondarySoft }]}>
+            <MaterialIcons name="videocam" size={24} color={COLORS.secondary} />
           </View>
           <View style={styles.cardText}>
             <Text style={styles.cardTitle}>Record Video</Text>
@@ -59,8 +59,8 @@ const HomeScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('Upload')}
           activeOpacity={0.8}
         >
-          <View style={[styles.cardIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-            <MaterialIcons name="folder" size={24} color={COLORS.primary} />
+          <View style={[styles.cardIcon, { backgroundColor: COLORS.accentSoft }]}>
+            <MaterialIcons name="folder" size={24} color={COLORS.accent} />
           </View>
           <View style={styles.cardText}>
             <Text style={styles.cardTitle}>Upload from Gallery</Text>
@@ -73,9 +73,9 @@ const HomeScreen = ({ navigation }) => {
         <Text style={styles.sectionTitle}>RECENT STATS</Text>
         <View style={styles.statsRow}>
           {[
-            { val: '12', label: 'Analyses', color: COLORS.blue },
-            { val: '138', label: 'Avg km/h', color: COLORS.primary },
-            { val: '94%', label: 'Accuracy', color: COLORS.orange },
+            { val: '12', label: 'Analyses', color: COLORS.primary },
+            { val: '138', label: 'Avg km/h', color: COLORS.secondary },
+            { val: '94%', label: 'Accuracy', color: COLORS.primaryDark },
           ].map((s) => (
             <View key={s.label} style={styles.statCard}>
               <Text style={styles.statLabel}>{s.label}</Text>
@@ -108,23 +108,24 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
-    backgroundColor: COLORS.bgSecondary, borderBottomWidth: 1, borderBottomColor: COLORS.bgBorder,
+    backgroundColor: COLORS.primary, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)',
   },
-  appName: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold },
+  appName: { color: '#fff', fontSize: TYPOGRAPHY.section, ...FONTS.semibold },
   avatar: {
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { color: '#fff', fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
+  avatarText: { color: COLORS.primary, fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
   scroll: { padding: SPACING.md, paddingTop: SPACING.md },
   banner: {
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md, padding: SPACING.md,
     borderWidth: 1, borderColor: COLORS.bgBorder, marginBottom: SPACING.lg,
+    shadowColor: '#0B1F33', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 2,
   },
-  bannerTitle: { color: COLORS.textPrimary, fontSize: TYPOGRAPHY.section, ...FONTS.semibold, marginBottom: 4 },
+  bannerTitle: { color: COLORS.primaryDark, fontSize: TYPOGRAPHY.section, ...FONTS.semibold, marginBottom: 4 },
   bannerSub: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.body, lineHeight: 20 },
   sectionTitle: {
-    color: COLORS.textMuted, fontSize: TYPOGRAPHY.small, ...FONTS.semibold,
+    color: COLORS.primaryDark, fontSize: TYPOGRAPHY.small, ...FONTS.semibold,
     letterSpacing: 0.8, marginBottom: SPACING.sm, marginTop: SPACING.sm, textTransform: 'uppercase'
   },
   actionCard: {
@@ -132,6 +133,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.bgBorder,
     padding: SPACING.md, flexDirection: 'row', alignItems: 'center',
     gap: SPACING.md, marginBottom: SPACING.sm,
+    shadowColor: '#0B1F33', shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 2,
   },
   cardIcon: { width: 48, height: 48, borderRadius: RADIUS.sm, alignItems: 'center', justifyContent: 'center' },
   cardText: { flex: 1 },
@@ -143,19 +145,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md,
     borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    shadowColor: '#0B1F33', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   statVal: { fontSize: TYPOGRAPHY.section, ...FONTS.semibold },
-  statLabel: { color: COLORS.textMuted, fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
+  statLabel: { color: COLORS.primary, fontSize: TYPOGRAPHY.body, ...FONTS.semibold },
   howCard: {
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md,
     borderWidth: 1, borderColor: COLORS.bgBorder, padding: SPACING.md, gap: SPACING.sm, marginBottom: SPACING.lg,
+    shadowColor: '#0B1F33', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   howRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   stepBadge: {
     width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.bgHighlight,
     alignItems: 'center', justifyContent: 'center',
   },
-  stepNum: { color: COLORS.primary, fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
+  stepNum: { color: COLORS.primaryDark, fontSize: TYPOGRAPHY.small, ...FONTS.semibold },
   stepText: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.body, flex: 1 },
 });
 

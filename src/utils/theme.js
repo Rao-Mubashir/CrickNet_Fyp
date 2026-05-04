@@ -1,29 +1,30 @@
 export const COLORS = {
   // Backgrounds
-  bgPrimary: '#0B0F14',
-  bgSecondary: '#121821',
-  bgCard: '#121821',
-  bgInput: '#1A212D',
-  bgBorder: '#1F2937',
-  bgHighlight: '#1F2937',
+  bgPrimary: '#F0F4F8',
+  bgSecondary: '#FFFFFF',
+  bgCard: '#FFFFFF',
+  bgInput: '#F7FAFC',
+  bgBorder: '#D9E2EC',
+  bgHighlight: '#EAF2FF',
 
-  // Brand (Focus on one primary accent: Green)
-  primary: '#10B981', // Emerald green
-  primaryDark: '#059669',
-  
-  // Keep these for charts/graphs if absolutely needed, but use sparingly
-  blue: '#3B82F6',
-  orange: '#F59E0B',
+  // Brand
+  primary: '#153A66',
+  primaryDark: '#0F2744',
+  secondary: '#2F80ED',
+  accent: '#E11D48',
+  accentSoft: 'rgba(225, 29, 72, 0.12)',
+  secondarySoft: 'rgba(47, 128, 237, 0.12)',
+  surfaceTint: '#F8FBFF',
 
   // Text
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
+  textPrimary: '#0B1F33',
+  textSecondary: '#52677A',
+  textMuted: '#7C8A99',
 
   // Semantic
   success: '#10B981',
-  error: '#EF4444',
-  warning: '#F59E0B',
+  error: '#E11D48',
+  warning: '#D97706',
 };
 
 export const FONTS = {
