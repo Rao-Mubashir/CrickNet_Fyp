@@ -11,18 +11,41 @@ export const AuthProvider = ({ children }) => {
   // Check for persisted session on app start
   useEffect(() => {
     const loadSession = async () => {
+      console.log('AuthContext: Loading session...');
       try {
-        const storedUser = await AsyncStorage.getItem('user');
-        const token = await AsyncStorage.getItem('auth_token');
-        if (storedUser && token) {
-          setUser(JSON.parse(storedUser));
-        }
+        // Set a timeout to prevent hanging indefinitely
+        const timeoutPromise = new Promise((resolve) => 
+          setTimeout(() => {
+            console.log('AuthContext: Auth loading timed out after 3 seconds');
+            resolve(null);
+          }, 3000) // 3 second timeout
+        );
+        
+        const loadPromise = (async () => {
+          try {
+            console.log('AuthContext: Fetching from AsyncStorage...');
+            const storedUser = await AsyncStorage.getItem('user');
+            const token = await AsyncStorage.getItem('auth_token');
+            console.log('AuthContext: Data fetched', { hasUser: !!storedUser, hasToken: !!token });
+            if (storedUser && token) {
+              setUser(JSON.parse(storedUser));
+            }
+            return true;
+          } catch (err) {
+            console.error('AuthContext: AsyncStorage error:', err);
+            return true; // Consider as loaded even if there's an error
+          }
+        })();
+        
+        await Promise.race([loadPromise, timeoutPromise]);
       } catch (error) {
-        console.error('Session load error:', error);
+        console.error('AuthContext: Session load error:', error);
       } finally {
+        console.log('AuthContext: Loading finished');
         setIsLoading(false);
       }
     };
+    
     loadSession();
   }, []);
 

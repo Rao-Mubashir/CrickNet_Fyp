@@ -8,7 +8,7 @@ const api = axios.create({
     Accept: 'application/json',
   },
 });
-
+;
 // Attach auth token to every request
 api.interceptors.request.use(
   async (config) => {

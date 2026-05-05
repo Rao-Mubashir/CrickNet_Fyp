@@ -1,27 +1,16 @@
 import React from 'react';
-import { ActivityIndicator, Image, View } from 'react-native';
+import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from '../utils/AuthContext';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
-import { COLORS } from '../utils/theme';
 
 const NavigationContent = () => {
   const { user, isLoading } = useAuth();
 
+  // Show light grey view while loading to distinguish from splash screen
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.bgPrimary }}>
-        <Image
-          source={require('../assets/splash.png')}
-          resizeMode="contain"
-          style={{ width: '100%', height: '100%' }}
-        />
-        <View style={{ position: 'absolute', bottom: 64 }}>
-          <ActivityIndicator size="large" color={COLORS.secondary} />
-        </View>
-      </View>
-    );
+    return <View style={{ flex: 1, backgroundColor: '#F0F4F8' }} />;
   }
 
   return user ? <MainNavigator /> : <AuthNavigator />;
